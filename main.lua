@@ -5,7 +5,9 @@ local Settings = require("settings")
 
 Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
     local settings = Settings.Load()
-    print(settings.conjures)
+    if not settings.enabled then
+        return true
+    end
     -- Player type hiders
     if entityEvent ~= nil and entityEvent.entityType == EntityType.PLAYER then
         if entityEvent.playerEntity.isValid and entityEvent.playerEntity.displayName == PlayerList.Self().displayName then
