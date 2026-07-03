@@ -1,10 +1,20 @@
 -- Toggles are just hardcoded true for now
 
 ConjureToggle = true
-AllFamiliarToggle = true
+AllFamiliarToggle = false
+NPCToggle = true
 DrakeToggle = true
 
 Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
+
+    if NPCToggle then
+        if NPCEntitySafetyCheckPassed(entityEvent) then
+            -- exclude familiars since users aren't likely to expect an NPC toggle to hide them
+            if not entityEvent.npcEntity.config.isFamiliar then
+                return false
+            end
+        end
+    end
     
     if AllFamiliarToggle then
         if NPCEntitySafetyCheckPassed(entityEvent) then
