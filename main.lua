@@ -1,56 +1,43 @@
+local GUI = require("interface/gui")
+local Settings = require("settings")
+
 -- Toggles are just hardcoded true for now
 
--- Player type toggles
-SelfToggle = false
-OtherPlayers = true
-
--- NPC type toggles
-ConjureToggle = true
-AllFamiliarToggle = false
-NPCToggle = true
-DrakeToggle = true
-
 Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
+    local settings = Settings.Load()
+    print(settings.conjures)
     -- Player type hiders
     if entityEvent ~= nil and entityEvent.entityType == EntityType.PLAYER then
         if entityEvent.playerEntity.isValid and entityEvent.playerEntity.displayName == PlayerList.Self().displayName then
-            return not SelfToggle
+            return not settings.localPlayer
         end
 
-        return not OtherPlayers
+        return not settings.otherPlayers
 
     end
     -- NPC type hiders
-    if entityEvent ~= nil and entityEvent.entityType == EntityType.NPC then
-        if NPCToggle then
-            if NPCEntitySafetyCheckPassed(entityEvent) then
+    if NPCEntitySafetyCheckPassed(entityEvent) then
+        if settings.allNPCs then
                 -- exclude familiars since users aren't likely to expect an NPC toggle to hide them
                 if not entityEvent.npcEntity.config.isFamiliar then
                     return false
                 end
-            end
         end
 
-        if AllFamiliarToggle then
-            if NPCEntitySafetyCheckPassed(entityEvent) then
+        if settings.allFamiliars then
                 if entityEvent.npcEntity.config.isFamiliar then
                     return false
                 end
-            end
         end
-        if not AllFamiliarToggle and DrakeToggle then
-            if NPCEntitySafetyCheckPassed(entityEvent) then
+        if not settings.allFamiliars and settings.drakePets then
                 if DrakeLookupTable[entityEvent.npcEntity.config.id] then
                     return false
                 end
-            end
         end
-        if ConjureToggle then
-            if NPCEntitySafetyCheckPassed(entityEvent) then
+        if settings.conjures then
                 if ConjureLookupTable[entityEvent.npcEntity.config.id] then
                     return false
                 end
-            end
         end
     end
     -- Also tried returning `entityEvent` here to see if it could deconflict another entity hider but resulted in both not working
@@ -111,3 +98,4 @@ function NPCEntitySafetyCheckPassed(entityEvent)
         and entityEvent.npcEntity.config.id ~= nil
         and entityEvent.npcEntity.config.isFamiliar ~= nil
 end
+
