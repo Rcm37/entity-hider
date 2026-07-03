@@ -1,0 +1,87 @@
+-- Toggles are just hardcoded true for now
+
+ConjureToggle = true
+AllFamiliarToggle = true
+DrakeToggle = true
+
+Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
+    
+    if AllFamiliarToggle then
+        if NPCEntitySafetyCheckPassed(entityEvent) then
+            if entityEvent.npcEntity.config.isFamiliar then
+                return false
+            end
+        end
+    end
+    if not AllFamiliarToggle and DrakeToggle then
+        if NPCEntitySafetyCheckPassed(entityEvent) then
+            if DrakeLookupTable[entityEvent.npcEntity.config.id] then
+                return false
+            end
+        end
+    end
+    if ConjureToggle then
+        if NPCEntitySafetyCheckPassed(entityEvent) then
+            if ConjureLookupTable[entityEvent.npcEntity.config.id] then
+                return false
+            end
+        end
+    end
+    -- Also tried returning `entityEvent` here to see if it could deconflict another entity hider but resulted in both not working
+    -- This return true will override any other entity hider plugin that is loaded after
+    return true
+
+end)
+
+DrakeLookupTable = {
+    [id.NPC.MTX_PET_DRAKE] = true,
+    [id.NPC.MTX_PET_SHADOW_DRAKE] = true,
+    [id.NPC.MTX_PET_DRAKE_JUVI] = true,
+    [id.NPC.MTX_PET_SHADOW_DRAKE_JUVI] = true,
+    [id.NPC.MTX_PET_DRAKE_ADULT] = true,
+    [id.NPC.MTX_PET_SHADOW_DRAKE_ADULT] = true,
+    [id.NPC.POH_MTX_PET_DRAKE] = true,
+    [id.NPC.POH_MTX_PET_SHADOW_DRAKE] = true,
+    [id.NPC.POH_MTX_PET_DRAKE_JUVI] = true,
+    [id.NPC.POH_MTX_PET_SHADOW_DRAKE_JUVI] = true,
+    [id.NPC.POH_MTX_PET_DRAKE_ADULT] = true,
+    [id.NPC.POH_MTX_PET_SHADOW_DRAKE_ADULT] = true,
+    [id.NPC.MTX_PET_DRAKE_BABY_TELEPORT] = true,
+    [id.NPC.MTX_PET_DRAKE_JUVI_TELEPORT] = true,
+    [id.NPC.MTX_PET_DRAKE_ADULT_TELEPORT] = true,
+    [id.NPC.MTX_PET_SHADOW_DRAKE_TELEPORT] = true,
+    [id.NPC.MTX_PET_SHADOW_DRAKE_JUVI_TELEPORT] = true,
+    [id.NPC.MTX_PET_SHADOW_DRAKE_ADULT_TELEPORT] = true,
+    [id.NPC.MTX118_FAIRY_DRAKE_DAY] = true,
+    [id.NPC.POH_MTX118_FAIRY_DRAKE_DAY] = true,
+    [id.NPC.MTX118_FAIRY_DRAKE_NIGHT] = true,
+    [id.NPC.POH_MTX118_FAIRY_DRAKE_NIGHT] = true,
+    [id.NPC.RUNEPASS_7_REWARD_PET_JAS_DRAKE] = true,
+    [id.NPC.RUNEPASS_7_REWARD_PET_JAS_DRAKE_POH] = true,
+    [id.NPC.RUNEPASS_7_REWARD_PET_WEN_DRAKE] = true,
+    [id.NPC.RUNEPASS_7_REWARD_PET_WEN_DRAKE_POH] = true,
+    [id.NPC.RUNEPASS_9_REWARD_PET_BIK_DRAKE_POH] = true,
+    [id.NPC.RUNEPASS_9_REWARD_PET_FUL_DRAKE] = true,
+    [id.NPC.RUNEPASS_9_REWARD_PET_FUL_DRAKE_POH] = true,
+    [id.NPC.RUNEPASS_9_REWARD_PET_BIK_DRAKE] = true,
+    [id.NPC.PREM23_PET] = true,
+    [id.NPC.PREM23_PET_POH] = true
+}
+
+ConjureLookupTable = {
+    [id.NPC.COMBATV2_NECROMANCY_SPIRIT_SKELETON_WARRIOR] = true,
+    [id.NPC.COMBATV2_NECROMANCY_SPIRIT_PUTRID_ZOMBIE] = true,
+    [id.NPC.COMBATV2_NECROMANCY_SPIRIT_VENGEFUL_GHOST] = true,
+    [id.NPC.COMBATV2_NECROMANCY_SPIRIT_PHANTOM_GUARDIAN] = true,
+    [id.NPC.MTXMGT_PREVIEW_COMBATV2_NECROMANCY_SPIRIT_PHANTOM_GUARDIAN_PRIMAL] = true,
+    [id.NPC.MTXMGT_PREVIEW_COMBATV2_NECROMANCY_SPIRIT_PHANTOM_GUARDIAN_XMAS24] = true
+}
+
+
+function NPCEntitySafetyCheckPassed(entityEvent)
+    return entityEvent ~= nil 
+        and entityEvent.entityType == EntityType.NPC 
+        and entityEvent.npcEntity ~= nil 
+        and entityEvent.npcEntity.config ~= nil 
+        and entityEvent.npcEntity.config.id ~= nil
+end
