@@ -35,13 +35,6 @@ local function safeButtonStyle()
     return nil
 end
 
-local function safePanelStyle()
-    if id ~= nil and id.StyleSheet ~= nil and id.StyleSheet.GROUPBOX_CONTENT_PANEL ~= nil then
-        return id.StyleSheet.GROUPBOX_CONTENT_PANEL
-    end
-    return nil
-end
-
 local function setStyle(component, style)
     if component ~= nil and style ~= nil then
         pcall(function()
@@ -118,22 +111,6 @@ local function destroyLauncher()
         state.launcher:Destroy()
         state.launcher = nil
     end
-end
-
-local function setTransparent(component)
-    if component == nil then
-        return
-    end
-
-    pcall(function()
-        component.alpha = 0.01
-    end)
-    pcall(function()
-        component.rgba = Settings.RGBA("000000", 0.01)
-    end)
-    pcall(function()
-        component.colour = Settings.RGBA("000000", 0.01)
-    end)
 end
 
 local function mountLauncher(parent)

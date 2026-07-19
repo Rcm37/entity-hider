@@ -47,32 +47,6 @@ local function rgbToHex(red, green, blue)
     return string.format("%02X%02X%02X", clampByte(red), clampByte(green), clampByte(blue))
 end
 
-local function hsvToRGB(hue, saturation, value)
-    local h = (safeNumber(hue, 0) % 360) / 60
-    local s = math.max(0, math.min(1, safeNumber(saturation, 0)))
-    local v = math.max(0, math.min(1, safeNumber(value, 0)))
-    local c = v * s
-    local x = c * (1 - math.abs((h % 2) - 1))
-    local m = v - c
-    local red, green, blue = 0, 0, 0
-
-    if h < 1 then
-        red, green, blue = c, x, 0
-    elseif h < 2 then
-        red, green, blue = x, c, 0
-    elseif h < 3 then
-        red, green, blue = 0, c, x
-    elseif h < 4 then
-        red, green, blue = 0, x, c
-    elseif h < 5 then
-        red, green, blue = x, 0, c
-    else
-        red, green, blue = c, 0, x
-    end
-
-    return clampByte((red + m) * 255), clampByte((green + m) * 255), clampByte((blue + m) * 255)
-end
-
 local function hexToVector(hex, alpha)
     local red, green, blue = hexToRGB(hex)
     return Vector4.new(red / 255, green / 255, blue / 255, alpha or 1.0)
@@ -252,39 +226,6 @@ local function addButton(parent, text, x, y, width, height, onPress)
     return button
 end
 
-local function addInput(parent, value, x, y, width, height, maxLength)
-    local input = ui.InputField.new(parent)
-    setStyle(input, safeButtonStyle())
-    input:SetPos(x, y)
-    input:SetSize(width, height)
-    input.clickthrough = false
-    pcall(function()
-        if input.Setup ~= nil and ui.TextContentVisibilityMode ~= nil and ui.InputFieldFilterMode ~= nil then
-            input:Setup(ui.TextContentVisibilityMode.VISIBLE, ui.InputFieldFilterMode.NONE, maxLength or 256)
-        end
-    end)
-    setComponentText(input, value)
-    moveToFront(input)
-    return {
-        component = input,
-        get = function()
-            return componentText(input)
-        end,
-        set = function(nextValue)
-            setComponentText(input, nextValue)
-        end
-    }
-end
-
-local function addNumberInput(parent, value, x, y, width, height)
-    local input = addInput(parent, value, x, y, width, height, 12)
-    input.get = function()
-        return componentText(input.component):gsub("[,%.]", ""):match("%-?%d+") or ""
-    end
-    input.set(value)
-    return input
-end
-
 local function addCheck(parent, value, x, y, onChange)
     local state = {
         value = value and true or false
@@ -316,15 +257,6 @@ local function addCheck(parent, value, x, y, onChange)
             check.text.content = state.value and "x" or ""
         end
     }
-end
-
-local function indexOf(options, value)
-    for index, option in ipairs(options or {}) do
-        if option == value then
-            return index
-        end
-    end
-    return 1
 end
 
 local function addPercentSlider(parent, value, x, y, width, height, onChange)
@@ -781,122 +713,6 @@ function Menu.Mount(parent, settings, onApply, onClose)
         end
 
         configureDragTarget(panel, 0, 0)
-
-        local function openColorPicker(key, label, control)
-            closeColorPicker()
-
-            local previousHex = Settings.NormalizeHex(normalized[key], "FFFFFF")
-            local red, green, blue = hexToRGB(control.get())
-            local currentHex = rgbToHex(red, green, blue)
-
-            local picker = newPanel(panel)
-            setStyle(picker, safePanelStyle())
-            picker:SetPos(WIDTH - PICKER_WIDTH - LEFT - 36, 64)
-            picker:SetSize(PICKER_WIDTH, PICKER_HEIGHT)
-            picker.clickthrough = false
-            setPanelOpacity(picker, normalized.menuOpacity)
-            moveToFront(picker)
-
-            addText(picker, "Color Picker - " .. label, 12, 7, PICKER_WIDTH - 64, 22, 0xFFFFFF)
-            addButton(picker, "x", PICKER_WIDTH - 48, 4, 34, 26, closeColorPicker)
-
-            addText(picker, "Color", 22, 44, 128, 22, LABEL_COLOR)
-            addText(picker, "Previous", 198, 44, 88, 22, LABEL_COLOR)
-            addText(picker, "Current", 198, 98, 88, 22, LABEL_COLOR)
-
-            local previousSwatch = addRect(picker, 198, 70, 88, 24, previousHex, true)
-            setRectangleColor(previousSwatch, previousHex, 1.0)
-            local currentSwatch = addRect(picker, 198, 124, 88, 24, currentHex, true)
-            setRectangleColor(currentSwatch, currentHex, 1.0)
-
-            local cellWidth = 7
-            local cellHeight = 10
-            local columns = 24
-            local rows = 13
-            local gradientLeft = 22
-            local gradientTop = 70
-            local updateColor = nil
-
-            for row = 0, rows - 1 do
-                local vertical = row / math.max(1, rows - 1)
-                local saturation = 1.0
-                local value = 1.0
-                if vertical < 0.5 then
-                    saturation = vertical * 2.0
-                else
-                    value = 1.0 - ((vertical - 0.5) * 2.0)
-                end
-
-                for column = 0, columns - 1 do
-                    local hue = (column / columns) * 360
-                    local swatchRed, swatchGreen, swatchBlue = hsvToRGB(hue, saturation, value)
-                    local hex = rgbToHex(swatchRed, swatchGreen, swatchBlue)
-                    local swatch = addRect(picker, gradientLeft + column * cellWidth, gradientTop + row * cellHeight, cellWidth + 1, cellHeight + 1, hex, true)
-                    swatch:Subscribe(ui.Hook.ONCLICK, function()
-                        if updateColor ~= nil then
-                            updateColor(hex)
-                        end
-                        return true
-                    end)
-                    swatch:Subscribe(ui.Hook.ONBUTTONPRESSED, function()
-                        if updateColor ~= nil then
-                            updateColor(hex)
-                        end
-                        return true
-                    end)
-                end
-            end
-
-            addText(picker, "Hex color", 28, 206, 120, 22, LABEL_COLOR)
-            addText(picker, "#", 28, 233, 20, 24, LABEL_COLOR)
-            local hexInput = addInput(picker, currentHex, 50, 230, 166, 28, 6)
-
-            local redInput = nil
-            local greenInput = nil
-            local blueInput = nil
-
-            updateColor = function(nextHex)
-                currentHex = Settings.NormalizeHex(nextHex, currentHex)
-                red, green, blue = hexToRGB(currentHex)
-                hexInput.set(currentHex)
-                if redInput ~= nil then redInput.set(red) end
-                if greenInput ~= nil then greenInput.set(green) end
-                if blueInput ~= nil then blueInput.set(blue) end
-                setRectangleColor(currentSwatch, currentHex, 1.0)
-                control.set(currentHex)
-                apply(false)
-            end
-
-            local function channelRow(name, value, rowY, setter)
-                addText(picker, name, 28, rowY + 4, 72, 24, LABEL_COLOR)
-                local valueControl = addNumberInput(picker, value, 136, rowY, 56, 26)
-                local function applyDelta(delta)
-                    local nextValue = clampByte(safeNumber(valueControl.get(), 0) + delta)
-                    valueControl.set(nextValue)
-                    setter(nextValue)
-                    updateColor(rgbToHex(red, green, blue))
-                end
-
-                addButton(picker, "-", 104, rowY, 28, 26, function() applyDelta(-1) end)
-                addButton(picker, "+", 198, rowY, 28, 26, function() applyDelta(1) end)
-                addButton(picker, "--", 228, rowY, 28, 26, function() applyDelta(-16) end)
-                addButton(picker, "++", 258, rowY, 28, 26, function() applyDelta(16) end)
-                return valueControl
-            end
-
-            addButton(picker, "Set", 222, 230, 54, 28, function()
-                updateColor(hexInput.get())
-            end)
-
-            redInput = channelRow("Red", red, 270, function(value) red = value end)
-            greenInput = channelRow("Green", green, 306, function(value) green = value end)
-            blueInput = channelRow("Blue", blue, 342, function(value) blue = value end)
-
-            updateColor(currentHex)
-            activePicker = {
-                root = picker
-            }
-        end
 
         local title = addText(panel, "EntityHider", LEFT, 8, 220, 24, ACCENT_COLOR, true)
         configureDragTarget(title, LEFT, 8)
