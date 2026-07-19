@@ -327,38 +327,6 @@ local function indexOf(options, value)
     return 1
 end
 
-local function addCycle(parent, value, options, x, y, width, height, onChange)
-    local state = {
-        value = Settings.NormalizeChoice(value, options, options[1])
-    }
-
-    local button = nil
-    button = addButton(parent, state.value, x, y, width, height, function()
-        local index = indexOf(options, state.value) + 1
-        if index > #options then
-            index = 1
-        end
-        state.value = options[index]
-        button.text.content = state.value
-        if onChange ~= nil then
-            onChange()
-        end
-    end)
-
-    return {
-        component = button,
-        get = function()
-            return state.value
-        end,
-        set = function(nextValue)
-            state.value = Settings.NormalizeChoice(nextValue, options, state.value)
-            if button ~= nil then
-                button.text.content = state.value
-            end
-        end
-    }
-end
-
 local function addPercentSlider(parent, value, x, y, width, height, onChange)
     local state = {
         value = Settings.ClampInt(value, 30, 100, 70)
@@ -814,33 +782,6 @@ function Menu.Mount(parent, settings, onApply, onClose)
 
         configureDragTarget(panel, 0, 0)
 
-        local function controlSet(key, value)
-            local control = menu.controls[key]
-            if control ~= nil and control.set ~= nil then
-                control.set(value)
-            end
-        end
-
-        local function updateBoxPosition(x, y)
-            local nextSettings = readAndStore()
-            nextSettings.boxX = Settings.ClampInt(x, 0, 5000, nextSettings.boxX)
-            nextSettings.boxY = Settings.ClampInt(y, 0, 5000, nextSettings.boxY)
-            menu.baseSettings = Settings.Normalize(nextSettings)
-            controlSet("boxX", menu.baseSettings.boxX)
-            controlSet("boxY", menu.baseSettings.boxY)
-            if onApply ~= nil then
-                onApply(menu.baseSettings, false)
-            end
-        end
-
-        local function nudgeBox(deltaX, deltaY)
-            local nextSettings = readAndStore()
-            updateBoxPosition(
-                safeNumber(nextSettings.boxX, normalized.boxX) + deltaX,
-                safeNumber(nextSettings.boxY, normalized.boxY) + deltaY
-            )
-        end
-
         local function openColorPicker(key, label, control)
             closeColorPicker()
 
@@ -1028,18 +969,6 @@ function Menu.Mount(parent, settings, onApply, onClose)
             y = y + ROW_HEIGHT
         end
 
-        local function inputRow(key, label, maxLength)
-            addText(panel, label, leftX, y + 4, inputOffset - 8, 22, LABEL_COLOR)
-            menu.controls[key] = addInput(panel, normalized[key], leftX + inputOffset, y, inputWidth, 24, maxLength or 160)
-            y = y + ROW_HEIGHT
-        end
-
-        local function numberRow(key, label)
-            addText(panel, label, leftX, y + 4, inputOffset - 8, 22, LABEL_COLOR)
-            menu.controls[key] = addNumberInput(panel, normalized[key], leftX + inputOffset, y, inputWidth, 24)
-            y = y + ROW_HEIGHT
-        end
-
         local function opacityRow(key, label)
             addText(panel, label, leftX, y + 4, inputOffset - 8, 22, LABEL_COLOR)
             menu.controls[key] = addPercentSlider(panel, normalized[key], leftX + inputOffset, y, inputWidth, 24, function()
@@ -1048,40 +977,6 @@ function Menu.Mount(parent, settings, onApply, onClose)
                 if onApply ~= nil then
                     onApply(nextSettings, false)
                 end
-            end)
-            y = y + ROW_HEIGHT
-        end
-
-        local function colorRow(key, label)
-            addText(panel, label, leftX, y + 4, inputOffset - 8, 22, LABEL_COLOR)
-            local state = {
-                hex = Settings.NormalizeHex(normalized[key], "FFFFFF")
-            }
-            local button = ui.Button.new(panel)
-            setStyle(button, safeButtonStyle())
-            button:SetPos(leftX + inputOffset, y)
-            button:SetSize(inputWidth, 24)
-            button.clickthrough = false
-            button.text.content = "#" .. state.hex
-            setRGB(button, tonumber(state.hex, 16) or 0xFFFFFF)
-            moveToFront(button)
-
-            local control = {
-                component = button,
-                get = function()
-                    return state.hex
-                end,
-                set = function(nextValue)
-                    local hex = Settings.NormalizeHex(nextValue, state.hex)
-                    state.hex = hex
-                    button.text.content = "#" .. hex
-                    setRGB(button, tonumber(hex, 16) or 0xFFFFFF)
-                end
-            }
-            menu.controls[key] = control
-            button:Subscribe(ui.Hook.ONBUTTONPRESSED, function()
-                openColorPicker(key, label, control)
-                return true
             end)
             y = y + ROW_HEIGHT
         end
@@ -1100,36 +995,8 @@ function Menu.Mount(parent, settings, onApply, onClose)
             opacityRow("menuOpacity", "Menu opacity")
         elseif activeTab == "Custom NPCs" then
             sectionTitle("Custom NPCs - NOT FUNCTIONAL")
-            -- inputRow("message", "Label", 120)
-            -- numberRow("boxX", "Box X")
-            -- numberRow("boxY", "Box Y")
-            -- numberRow("boxSize", "Box size")
-            -- numberRow("fontSize", "Font size")
-            -- y = y + 6
-
-            -- sectionTitle("Move")
-            -- local moveGap = 6
-            -- local moveButtonWidth = math.floor((pageWidth - moveGap * 3) / 4)
-            -- addButton(panel, "X-", leftX, y, moveButtonWidth, 24, function() nudgeBox(-8, 0) end)
-            -- addButton(panel, "X+", leftX + (moveButtonWidth + moveGap), y, moveButtonWidth, 24, function() nudgeBox(8, 0) end)
-            -- addButton(panel, "Y-", leftX + (moveButtonWidth + moveGap) * 2, y, moveButtonWidth, 24, function() nudgeBox(0, -8) end)
-            -- addButton(panel, "Y+", leftX + (moveButtonWidth + moveGap) * 3, y, moveButtonWidth, 24, function() nudgeBox(0, 8) end)
-            -- y = y + ROW_HEIGHT
-
-            -- addButton(panel, "Center", leftX, y, pageWidth, 24, function()
-            --     updateBoxPosition(780, 172)
-            -- end)
         elseif activeTab == "Custom Players" then
             sectionTitle("Custom Players - NOT FUNCTIONAL")
-            -- colorRow("accentColor", "Box color")
-            -- colorRow("labelColor", "Text color")
-            -- y = y + 6
-
-            -- sectionTitle("Style")
-            -- addText(panel, "Box style", leftX, y + 4, inputOffset - 8, 22, LABEL_COLOR)
-            -- menu.controls.boxStyle = addCycle(panel, normalized.boxStyle, Settings.OPTIONS.boxStyle, leftX + inputOffset, y, inputWidth, 24, function()
-            --     apply(false)
-            -- end)
         end
 
         local bottomY = HEIGHT - 44

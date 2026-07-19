@@ -164,18 +164,13 @@ local function flushPendingSave()
     end
 end
 
-local function saveSettings(nextSettings, persistNow)
+local function saveSettings(nextSettings)
     state.settings = Settings.Normalize(nextSettings)
     if state.menu ~= nil then
         state.menu.baseSettings = Settings.Normalize(state.settings)
     end
-    if persistNow == false then
-        state.pendingSave = true
-        state.saveAfterSeconds = state.elapsedSeconds + 1.0
-    else
-        Settings.Save(state.settings)
-        state.pendingSave = false
-    end
+    Settings.Save(state.settings)
+    state.pendingSave = false
 end
 
 openMenu = function()
@@ -183,8 +178,8 @@ openMenu = function()
         return
     end
 
-    state.menu = Menu.Mount(state.parent, state.settings, function(nextSettings, persistNow)
-        saveSettings(nextSettings, persistNow)
+    state.menu = Menu.Mount(state.parent, state.settings, function(nextSettings)
+        saveSettings(nextSettings)
     end, function()
         if state.menu ~= nil then
             flushPendingSave()
@@ -215,70 +210,8 @@ local function syncMenuSettings()
     end)
 
     if ok and nextSettings ~= nil and not settingsEqual(state.settings, nextSettings) then
-        saveSettings(nextSettings, false)
+        saveSettings(nextSettings)
     end
-end
-
-menuControlSet = function(key, value)
-    if state.menu == nil or state.menu.controls == nil then
-        return
-    end
-
-    local control = state.menu.controls[key]
-    if control ~= nil and control.set ~= nil then
-        pcall(function()
-            control.set(value)
-        end)
-    end
-end
-
-local function mousePosition()
-    if Mouse == nil then
-        return nil
-    end
-
-    if Mouse.IsAvailable ~= nil then
-        local ok, available = pcall(function()
-            return Mouse.IsAvailable()
-        end)
-        if ok and not available then
-            return nil
-        end
-    end
-
-    if Mouse.GetX ~= nil and Mouse.GetY ~= nil then
-        local ok, mouseX, mouseY = pcall(function()
-            return Mouse.GetX(), Mouse.GetY()
-        end)
-        if ok and mouseX ~= nil and mouseY ~= nil then
-            return math.floor(mouseX), math.floor(mouseY)
-        end
-    end
-
-    if Mouse.GetPosition ~= nil then
-        local ok, mousePos = pcall(function()
-            return Mouse.GetPosition()
-        end)
-        if ok and mousePos ~= nil then
-            local mouseX = tonumber(mousePos.x or mousePos.X)
-            local mouseY = tonumber(mousePos.y or mousePos.Y)
-            if mouseX ~= nil and mouseY ~= nil then
-                return math.floor(mouseX), math.floor(mouseY)
-            end
-        end
-    end
-
-    return nil
-end
-
-local function mouseInsideMenu(mouseX, mouseY)
-    if state.menu == nil or state.settings == nil then
-        return false
-    end
-
-    local left = Settings.ClampInt(state.settings.menuX, 0, 3000, 14)
-    local top = Settings.ClampInt(state.settings.menuY, 0, 3000, 170)
-    return mouseX >= left and mouseX <= left + MENU_WIDTH and mouseY >= top and mouseY <= top + MENU_HEIGHT
 end
 
 local function bringUiToFront()

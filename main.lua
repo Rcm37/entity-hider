@@ -42,8 +42,6 @@ Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
                 end
         end
     end
-    -- Also tried returning `entityEvent` here to see if it could deconflict another entity hider but resulted in both not working
-    -- This return true will override any other entity hider plugin that is loaded after
     return true
 end)
 
