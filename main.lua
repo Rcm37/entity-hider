@@ -1,45 +1,91 @@
-local GUI = require("interface/gui")
 local Settings = require("settings")
 
--- Toggles are just hardcoded true for now
+local gallery = require("interface/gallery")
+
+local BUILD_EVENT = "entity_hider_build"
+local ribbonButton = nil
+
+local function buildGallery()
+    return gallery.Build(function()
+        if ribbonButton then ribbonButton:SetActive(false) end
+    end)
+end
+
+ribbonButton = prettyui.RibbonBar.Register({
+    id = "EntityHider",
+    icon = id.Sprite.COMBAT_ABILITY_ICON_NECROMANCY_CONJURE_SKELETON_WARRIOR_LOCKED,
+    tooltip = "Entity Hider",
+    onClick = function(handle, active)
+        if active then
+            if buildGallery() then
+                gallery.Show()
+            else
+                handle:SetActive(false)
+            end
+        else
+            gallery.Close()
+        end
+    end,
+})
+
+-- The game area may not exist during the first plugin tick.
+if not buildGallery() then
+    Event.Logic.Subscribe(BUILD_EVENT, function()
+        if buildGallery() then
+            ribbonButton:SetActive(true)
+            Event.Logic.Unsubscribe(BUILD_EVENT)
+        end
+    end)
+else
+    ribbonButton:SetActive(true)
+end
+
+function PluginShutdown()
+    Event.Logic.Unsubscribe(BUILD_EVENT)
+    gallery.Destroy()
+
+    if ribbonButton then
+        ribbonButton:Destroy()
+        ribbonButton = nil
+    end
+end
+
 
 Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
-    local settings = Settings.Load()
-    if not settings.enabled then
+    if not Settings.get("enabled") then
         return true
     end
     -- Player type hiders
     if entityEvent ~= nil and entityEvent.entityType == EntityType.PLAYER then
         if entityEvent.playerEntity.isValid and entityEvent.playerEntity.displayName == PlayerList.Self().displayName then
-            return not settings.localPlayer
+            return not Settings.get("localPlayer")
         end
 
-        return not settings.otherPlayers
-
+        return not Settings.get("otherPlayers")
     end
     -- NPC type hiders
     if NPCEntitySafetyCheckPassed(entityEvent) then
-        if settings.allNPCs then
-                -- exclude familiars since users aren't likely to expect an NPC toggle to hide them
-                if not entityEvent.npcEntity.config.isFamiliar then
-                    return false
-                end
+        if Settings.get("allNPCs") then
+            -- exclude familiars since users aren't likely to expect an NPC toggle to hide them
+            if not entityEvent.npcEntity.config.isFamiliar then
+                return false
+            end
         end
 
-        if settings.allFamiliars then
-                if entityEvent.npcEntity.config.isFamiliar then
-                    return false
-                end
+        if Settings.get("allFamiliars") then
+            if entityEvent.npcEntity.config.isFamiliar then
+                return false
+            end
         end
-        if not settings.allFamiliars and settings.drakePets then
-                if DrakeLookupTable[entityEvent.npcEntity.config.id] then
-                    return false
-                end
+        if not Settings.get("allFamiliars") and Settings.get("drakePets") then
+            if DrakeLookupTable[entityEvent.npcEntity.config.id] then
+                return false
+            end
         end
-        if settings.conjures then
-                if ConjureLookupTable[entityEvent.npcEntity.config.id] then
-                    return false
-                end
+        if Settings.get("conjures") then
+            if ConjureLookupTable[entityEvent.npcEntity.config.id] then
+                return false
+            end
         end
     end
     return true
@@ -98,4 +144,3 @@ function NPCEntitySafetyCheckPassed(entityEvent)
         and entityEvent.npcEntity.config.id ~= nil
         and entityEvent.npcEntity.config.isFamiliar ~= nil
 end
-

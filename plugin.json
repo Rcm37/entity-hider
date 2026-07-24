@@ -1,7 +1,9 @@
 {
   "name": "EntityHider",
   "version": "0.1.0",
-  "requiredDependencies": [],
+  "requiredDependencies": [
+    "prettyui"
+  ],
   "optionalDependencies": [],
   "requiredPermissions": [],
   "optionalPermissions": []
