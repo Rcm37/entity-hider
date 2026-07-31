@@ -2,7 +2,7 @@ local gallery = {}
 local Settings = require("Settings")
 
 local GUI_WIDTH = 240
-local GUI_HEIGHT = 430
+local GUI_HEIGHT = 450
 
 -- Main gallery surfaces.
 local toggleGUI = nil
@@ -76,7 +76,7 @@ function gallery.Build(onCloseHandler)
     })
 
     toggleGUI:AddText({ text = "Created by Rcm37", colour = 0xAFA27FFF, marginTop = 1, marginBottom = 2 })
-    toggleGUI:AddText({ text = "Using PrettyUI 0.1.0", colour = 0xAFA27FFF, marginTop = 1, marginBottom = 2 })
+    toggleGUI:AddText({ text = "Using PrettyUI 0.5.0", colour = 0xAFA27FFF, marginTop = 1, marginBottom = 2 })
 
     return true
 end
