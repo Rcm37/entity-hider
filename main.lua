@@ -50,7 +50,6 @@ function PluginShutdown()
     end
 end
 
-
 Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
     if not Settings.get("enabled") then
         return true
@@ -60,7 +59,9 @@ Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
         if entityEvent.playerEntity.isValid and entityEvent.playerEntity.displayName == PlayerList.Self().displayName then
             return not Settings.get("localPlayer")
         end
-
+        if entityEvent.playerEntity.isValid and ListContains(Settings.get("customRSNs"), entityEvent.playerEntity.displayName) then
+            return false
+        end
         return not Settings.get("otherPlayers")
     end
     -- NPC type hiders
@@ -71,7 +72,9 @@ Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
                 return false
             end
         end
-
+        if string.find(entityEvent.npcEntity.displayName, "spider") then
+            return not Settings.get("spiders")
+        end
         if Settings.get("allFamiliars") then
             if entityEvent.npcEntity.config.isFamiliar then
                 return false
@@ -86,6 +89,13 @@ Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
             if ConjureLookupTable[entityEvent.npcEntity.config.id] then
                 return false
             end
+        end
+        if ListContains(Settings.get("customNPCs"), entityEvent.npcEntity.displayName) then
+            return false
+        end
+
+        if entityEvent.npcEntity.config.isFamiliar and ListContains(Settings.get("customFamiliars"), entityEvent.npcEntity.displayName) then
+            return false
         end
     end
     return true
@@ -143,4 +153,11 @@ function NPCEntitySafetyCheckPassed(entityEvent)
         and entityEvent.npcEntity.config ~= nil
         and entityEvent.npcEntity.config.id ~= nil
         and entityEvent.npcEntity.config.isFamiliar ~= nil
+end
+
+function ListContains(list, name)
+    list = string.lower(list):gsub("%s*,%s*", ",")
+    name = string.lower(name)
+
+    return ("," .. list .. ","):find("," .. name .. ",", 1, true) ~= nil
 end

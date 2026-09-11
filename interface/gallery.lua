@@ -51,9 +51,44 @@ local function createToggles(window)
         { text = "Hide NPCs",            value = "allNPCs",      selected = Settings.get("allNPCs") },
         { text = "Hide Local Player",    value = "localPlayer",  selected = Settings.get("localPlayer") },
         { text = "Hide Other Players",   value = "otherPlayers", selected = Settings.get("otherPlayers") },
+        { text = "Hide Spiders",   value = "spiders", selected = Settings.get("spiders") },
     }, {
         onChange = function(_, _, changedValue, selected)
             updateSettings(changedValue, selected)
+        end,
+    })
+end
+
+local function createInputFields(window)
+    window:AddTitle("Custom Inputs")
+    window:AddText({
+        text = "Supports text selection, copy, and paste"
+    })
+    window:AddText({
+        text = "Input RSNs separated by commas"
+    })
+    playerDisplayName = window:AddTextField({
+        placeholder = "player1,player2,player3,durial321",
+        onSubmit = function(_,text)
+            updateCustomRSNs(text)
+        end,
+    })
+    window:AddText({
+        text = "Input NPC names separated by commas"
+    })
+    playerDisplayName = window:AddTextField({
+        placeholder = "Coeden,Strange Old Man,Clan Representative",
+        onSubmit = function(_,text)
+            updateCustomNPCs(text)
+        end,
+    })
+    window:AddText({
+        text = "Input familiar names separated by commas"
+    })
+    playerDisplayName = window:AddTextField({
+        placeholder = "Kal'gerion demon,Devout Yak",
+        onSubmit = function(_,text)
+            updateCustomFamiliars(text)
         end,
     })
 end
@@ -69,8 +104,21 @@ function gallery.Build(onCloseHandler)
 
     createWindow(toggleGUI)
     createToggles(toggleGUI)
+    createInputFields(toggleGUI)
 
     return true
+end
+
+function updateCustomRSNs(text)
+    Settings.update("customRSNs", text)
+end
+
+function updateCustomNPCs(text)
+    Settings.update("customNPCs", text)
+end
+
+function updateCustomFamiliars(text)
+    Settings.update("customFamiliars", text)
 end
 
 function updateSettings(settingsKey, value)
