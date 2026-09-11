@@ -67,7 +67,7 @@ local function createInputFields(window)
     window:AddText({
         text = "Input RSNs separated by commas"
     })
-    playerDisplayName = window:AddTextField({
+    window:AddTextField({
         placeholder = "player1,player2,player3,durial321",
         onSubmit = function(_,text)
             updateCustomRSNs(text)
@@ -76,7 +76,7 @@ local function createInputFields(window)
     window:AddText({
         text = "Input NPC names separated by commas"
     })
-    playerDisplayName = window:AddTextField({
+    window:AddTextField({
         placeholder = "Coeden,Strange Old Man,Clan Representative",
         onSubmit = function(_,text)
             updateCustomNPCs(text)
@@ -85,7 +85,7 @@ local function createInputFields(window)
     window:AddText({
         text = "Input familiar names separated by commas"
     })
-    playerDisplayName = window:AddTextField({
+    window:AddTextField({
         placeholder = "Kal'gerion demon,Devout Yak",
         onSubmit = function(_,text)
             updateCustomFamiliars(text)
