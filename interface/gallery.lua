@@ -70,14 +70,6 @@ function gallery.Build(onCloseHandler)
     createWindow(toggleGUI)
     createToggles(toggleGUI)
 
-    toggleGUI:AddDivider({
-        marginTop = 1,
-        marginBottom = 1
-    })
-
-    toggleGUI:AddText({ text = "Created by Rcm37", colour = 0xAFA27FFF, marginTop = 1, marginBottom = 2 })
-    toggleGUI:AddText({ text = "Using PrettyUI 0.5.0", colour = 0xAFA27FFF, marginTop = 1, marginBottom = 2 })
-
     return true
 end
 
