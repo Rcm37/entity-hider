@@ -8,10 +8,6 @@ local GUI_HEIGHT = 450
 local toggleGUI = nil
 local onClose = nil
 
--- Component handles retained by the demo.
-local toggleOptions = nil
-local globalToggle = nil
-
 -- Build our primary window
 local function createDemoWindow(gameArea)
     return prettyui.Window.new(gameArea, {
@@ -33,7 +29,7 @@ end
 -- Demo sections appear here in the same order as they appear in the UI.
 local function createWindow(window)
     window:AddTitle("Global Toggle")
-    globalToggle = window:AddCheckboxButton({
+    window:AddCheckboxButton({
         { text = "Enable Plugin", value = "enabled", selected = Settings.get("enabled") },
     }, {
         onChange = function(_, _, changedValue, selected)
@@ -44,7 +40,7 @@ end
 
 local function createToggles(window)
     window:AddTitle("Toggle Options")
-    toggleOptions = window:AddCheckboxButton({
+    window:AddCheckboxButton({
         { text = "Hide Conjures",        value = "conjures",     selected = Settings.get("conjures") },
         { text = "Hide Drake Familiars", value = "drakePets",    selected = Settings.get("drakePets") },
         { text = "Hide All Familiars",   value = "allFamiliars", selected = Settings.get("allFamiliars") },
