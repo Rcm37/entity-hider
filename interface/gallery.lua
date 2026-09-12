@@ -65,7 +65,8 @@ local function createInputFields(window)
     })
     window:AddTextField({
         placeholder = "player1,player2,player3,durial321",
-        onSubmit = function(_,text)
+        text = Settings.get("customRSNs"),
+        onChange = function(_,_,text)
             updateCustomRSNs(text)
         end,
     })
@@ -74,7 +75,8 @@ local function createInputFields(window)
     })
     window:AddTextField({
         placeholder = "Coeden,Strange Old Man,Clan Representative",
-        onSubmit = function(_,text)
+        text = Settings.get("customNPCs"),
+        onChange = function(_,_,text)
             updateCustomNPCs(text)
         end,
     })
@@ -83,7 +85,8 @@ local function createInputFields(window)
     })
     window:AddTextField({
         placeholder = "Kal'gerion demon,Devout Yak",
-        onSubmit = function(_,text)
+        text = Settings.get("customFamiliars"),
+        onChange = function(_,_,text)
             updateCustomFamiliars(text)
         end,
     })
