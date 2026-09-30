@@ -1,54 +1,21 @@
 local Settings = require("settings")
 
-local gallery = require("interface/gallery")
-
-local BUILD_EVENT = "entity_hider_build"
-local ribbonButton = nil
-
-local function buildGallery()
-    return gallery.Build(function()
-        if ribbonButton then ribbonButton:SetActive(false) end
-    end)
-end
-
-ribbonButton = prettyui.RibbonBar.Register({
-    id = "EntityHider",
-    icon = id.Sprite.COMBAT_ABILITY_ICON_NECROMANCY_CONJURE_SKELETON_WARRIOR_LOCKED,
-    tooltip = "Entity Hider",
-    onClick = function(handle, active)
-        if active then
-            if buildGallery() then
-                gallery.Show()
-            else
-                handle:SetActive(false)
-            end
-        else
-            gallery.Close()
-        end
-    end,
-})
-
--- The game area may not exist during the first plugin tick.
-if not buildGallery() then
-    Event.Logic.Subscribe(BUILD_EVENT, function()
-        if buildGallery() then
-            ribbonButton:SetActive(true)
-            Event.Logic.Unsubscribe(BUILD_EVENT)
-        end
-    end)
-else
-    ribbonButton:SetActive(true)
-end
+local settingsView = require("interface/settings")
+local contentView = require("interface/content")
 
 function PluginShutdown()
-    Event.Logic.Unsubscribe(BUILD_EVENT)
-    gallery.Destroy()
-
-    if ribbonButton then
-        ribbonButton:Destroy()
-        ribbonButton = nil
+    Event.SettingsLayerReady.Unsubscribe("my-plugin-settings")
+    if settingsView then
+        settingsView:Destroy()
+        settingsView = nil
+    end
+    Event.ContentLayerReady.Unsubscribe("my-plugin-content")
+    if contentView then
+        contentView:Destroy()
+        contentView = nil
     end
 end
+
 
 Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
     if not Settings.get("enabled") then
