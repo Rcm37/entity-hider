@@ -33,5 +33,6 @@ Event.ContentLayerReady.Subscribe("my-plugin-content", function(event)
             UIUtils.updateSettings(changedValue, selected)
         end,
     })
-    contentView:AddText("Check plugin settings via hub for custom configurations!")
+    contentView:AddDivider()
+    contentView:AddText("Manage Entity Hider settings via Plugin Hub to set custom configurations!")
 end)
