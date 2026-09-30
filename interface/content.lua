@@ -33,4 +33,5 @@ Event.ContentLayerReady.Subscribe("my-plugin-content", function(event)
             UIUtils.updateSettings(changedValue, selected)
         end,
     })
+    contentView:AddText("Check plugin settings via hub for custom configurations!")
 end)
