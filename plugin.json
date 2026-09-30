@@ -5,7 +5,7 @@
   "hasRibbonIcon": true,
   "hasSettingsIcon": true,
   "requiredDependencies": {
-    "prettyui" : "prettyui"
+    "prettyui" : 6398181
   },
   "optionalDependencies": {},
   "requiredPermissions": [],
