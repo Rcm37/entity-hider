@@ -1,5 +1,5 @@
 local uiutils = {}
-local Settings = require("Settings")
+local Settings = require("settings")
 function uiutils.updateCustomRSNs(text)
     Settings.update("customRSNs", text)
 end
