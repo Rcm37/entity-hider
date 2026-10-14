@@ -36,3 +36,4 @@ Event.ContentLayerReady.Subscribe("my-plugin-content", function(event)
     contentView:AddDivider()
     contentView:AddText("Manage Entity Hider settings via Plugin Hub to set custom configurations!")
 end)
+return contentView
