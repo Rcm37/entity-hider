@@ -26,7 +26,7 @@ Event.EntityDraw.Subscribe("entity-hider-entity-draw", function(entityEvent)
         if entityEvent.playerEntity.isValid and entityEvent.playerEntity.displayName == PlayerList.Self().displayName then
             return not Settings.get("localPlayer")
         end
-        if entityEvent.playerEntity.isValid and ListContains(Settings.get("customRSNs"), entityEvent.playerEntity.displayName) then
+        if entityEvent.playerEntity.isValid and ListContains(Settings.get("customRSNs"), entityEvent.playerEntity.displayName, true) then
             return false
         end
         return not Settings.get("otherPlayers")
@@ -61,11 +61,11 @@ Event.EntityDraw.Subscribe("entity-hider-entity-draw", function(entityEvent)
             end
         end
         
-        if ListContains(Settings.get("customNPCs"), entityEvent.npcEntity.displayName) then
+        if ListContains(Settings.get("customNPCs"), entityEvent.npcEntity.displayName, false) and not entityEvent.npcEntity.config.isFamiliar then
             return false
         end
 
-        if entityEvent.npcEntity.config.isFamiliar and ListContains(Settings.get("customFamiliars"), entityEvent.npcEntity.displayName) then
+        if entityEvent.npcEntity.config.isFamiliar and ListContains(Settings.get("customFamiliars"), entityEvent.npcEntity.displayName, false) then
             return false
         end
     end
@@ -126,9 +126,19 @@ function NPCEntitySafetyCheckPassed(entityEvent)
         and entityEvent.npcEntity.config.isFamiliar ~= nil
 end
 
-function ListContains(list, name)
-    list = list:lower():gsub("Â ", " "):gsub("%s*,%s*", ",")
-    name = name:lower():gsub("Â ", " ")
+function ListContains(list, name, isPlayer)
+    list = string.lower(list):gsub("%s*,%s*", ",")
+    name = string.lower(name)
+    -- npc names seem to be fine with spaces, only player names have the weird non-breaking thing
+    if isPlayer then
+        name = NormalizeName(name)
+    end
 
     return ("," .. list .. ","):find("," .. name .. ",", 1, true) ~= nil
+end
+
+function NormalizeName(name)
+    return name:lower()
+        :gsub("\195\130\194\160", " ")
+        :gsub("\194\160", " ")
 end
