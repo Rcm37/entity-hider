@@ -4,24 +4,20 @@ local settingsView = require("interface/settings")
 local contentView = require("interface/content")
 
 function PluginShutdown()
-    Event.SettingsLayerReady.Unsubscribe("my-plugin-settings")
-    print(settingsView)
+    Event.SettingsLayerReady.Unsubscribe("entity-hider-settings-pane")
     if settingsView then
-        print("attempt destroy")
         settingsView:Destroy()
         settingsView = nil
     end
-    Event.ContentLayerReady.Unsubscribe("my-plugin-content")
-    print(contentView)
+    Event.ContentLayerReady.Unsubscribe("entity-hider-content-pane")
     if contentView then
-        print("attempt destroy 2")
         contentView:Destroy()
         contentView = nil
     end
 end
 
 
-Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
+Event.EntityDraw.Subscribe("entity-hider-entity-draw", function(entityEvent)
     if not Settings.get("enabled") then
         return true
     end
@@ -37,13 +33,21 @@ Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
     end
     -- NPC type hiders
     if NPCEntitySafetyCheckPassed(entityEvent) then
+        if Settings.get("conjures") then
+            if ConjureLookupTable[entityEvent.npcEntity.config.id] then
+                return false
+            else
+                -- Adding this return since people prefered conjures not being turned off by the All NPC toggle
+                return true
+            end
+        end
         if Settings.get("allNPCs") then
             -- exclude familiars since users aren't likely to expect an NPC toggle to hide them
             if not entityEvent.npcEntity.config.isFamiliar then
                 return false
             end
         end
-        if string.find(entityEvent.npcEntity.displayName, "spider") then
+        if string.find(string.lower(entityEvent.npcEntity.displayName), "spider") then
             return not Settings.get("spiders")
         end
         if Settings.get("allFamiliars") then
@@ -56,11 +60,7 @@ Event.EntityDraw.Subscribe("myEvent", function(entityEvent)
                 return false
             end
         end
-        if Settings.get("conjures") then
-            if ConjureLookupTable[entityEvent.npcEntity.config.id] then
-                return false
-            end
-        end
+        
         if ListContains(Settings.get("customNPCs"), entityEvent.npcEntity.displayName) then
             return false
         end
@@ -127,8 +127,8 @@ function NPCEntitySafetyCheckPassed(entityEvent)
 end
 
 function ListContains(list, name)
-    list = string.lower(list):gsub("%s*,%s*", ",")
-    name = string.lower(name)
+    list = list:lower():gsub("Â ", " "):gsub("%s*,%s*", ",")
+    name = name:lower():gsub("Â ", " ")
 
     return ("," .. list .. ","):find("," .. name .. ",", 1, true) ~= nil
 end

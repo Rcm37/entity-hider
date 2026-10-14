@@ -2,7 +2,7 @@ local settingsView
 local Settings = require("settings")
 local UIUtils = require("interface/ui_utils")
 
-Event.SettingsLayerReady.Subscribe("my-plugin-settings", function(event)
+Event.SettingsLayerReady.Subscribe("entity-hider-settings-pane", function(event)
     if settingsView then settingsView:Destroy() end
 
     local parent = event.component
