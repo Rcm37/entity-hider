@@ -45,3 +45,4 @@ Event.SettingsLayerReady.Subscribe("my-plugin-settings", function(event)
         end,
     })
 end)
+return settingsView

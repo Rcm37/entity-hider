@@ -5,12 +5,16 @@ local contentView = require("interface/content")
 
 function PluginShutdown()
     Event.SettingsLayerReady.Unsubscribe("my-plugin-settings")
+    print(settingsView)
     if settingsView then
+        print("attempt destroy")
         settingsView:Destroy()
         settingsView = nil
     end
     Event.ContentLayerReady.Unsubscribe("my-plugin-content")
+    print(contentView)
     if contentView then
+        print("attempt destroy 2")
         contentView:Destroy()
         contentView = nil
     end
