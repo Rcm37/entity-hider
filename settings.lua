@@ -2,6 +2,8 @@ local Settings = {}
 
 local PLUGIN_DB_PREFIX = "entity_hider_"
 
+local CachedSettings = {}
+
 -- Settings and their default values/types
 local ValidSettings = {
     enabled = {
@@ -65,6 +67,8 @@ function Settings.update(settingName, value)
 
     local setting = ValidSettings[settingName]
 
+    CachedSettings[settingName] = value
+
     if setting.type == "boolean" then
         PersistentDB:SetBool(makeKey(settingName), value)
     elseif setting.type == "string" then
@@ -74,6 +78,10 @@ end
 
 function Settings.get(settingName)
     assertValidSetting(settingName)
+
+    if CachedSettings[settingName] ~= nil then
+        return CachedSettings[settingName]
+    end
 
     local setting = ValidSettings[settingName]
     local value
@@ -85,15 +93,16 @@ function Settings.get(settingName)
     end
 
     if value == nil then
-        if setting.type == "boolean" then
-            PersistentDB:SetBool(makeKey(settingName), setting.default)
-        elseif setting.type == "string" then
-            PersistentDB:SetString(makeKey(settingName), setting.default)
-        end
+        value = setting.default
 
-        return setting.default
+        if setting.type == "boolean" then
+            PersistentDB:SetBool(makeKey(settingName), value)
+        elseif setting.type == "string" then
+            PersistentDB:SetString(makeKey(settingName), value)
+        end
     end
 
+    CachedSettings[settingName] = value
     return value
 end
 
