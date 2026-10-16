@@ -1,4 +1,13 @@
 local Settings = {}
+local listeners = {}
+
+function Settings.Subscribe(key, callback)
+    listeners[key] = callback
+end
+
+function Settings.Unsubscribe(key)
+    listeners[key] = nil
+end
 
 local PLUGIN_DB_PREFIX = "entity_hider_"
 
@@ -38,6 +47,10 @@ local ValidSettings = {
         default = false,
         type = "boolean"
     },
+    rightClickRequireCtrlShift = {
+        default = false,
+        type = "boolean"
+    },
     customRSNs = {
         default = "",
         type = "string"
@@ -67,13 +80,19 @@ function Settings.update(settingName, value)
 
     local setting = ValidSettings[settingName]
 
-    CachedSettings[settingName] = value
+    if type(value) ~= setting.type then
+        error("Setting " .. settingName .. " expects " .. setting.type .. ", got " .. type(value))
+    end
 
     if setting.type == "boolean" then
         PersistentDB:SetBool(makeKey(settingName), value)
     elseif setting.type == "string" then
         PersistentDB:SetString(makeKey(settingName), value)
     end
+
+    -- A failed write must leave the cached value unchanged.
+    CachedSettings[settingName] = value
+    for _, callback in pairs(listeners) do callback(settingName, value) end
 end
 
 function Settings.get(settingName)

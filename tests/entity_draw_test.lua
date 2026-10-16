@@ -1,16 +1,18 @@
 -- Run from entity-hider: lua tests/entity_draw_test.lua
-local settings = {}
+local settings = { enabled = true }
 local draw
-package.loaded.settings = { get = function(key) return settings[key] end }
-package.loaded["interface/settings"] = {}
-package.loaded["interface/content"] = {}
+package.loaded.settings = {
+    get = function(key) return settings[key] end,
+    Subscribe = function() end,
+    Unsubscribe = function() end,
+}
 EntityType = { PLAYER = 1, NPC = 2 }
 Event = { EntityDraw = { Subscribe = function(_, callback) draw = callback end } }
 id = { NPC = setmetatable({}, { __index = function(_, key) return key end }) }
 local self = { displayName = "Local Player" }
 PlayerList = { Self = function() return self end }
 
-dofile("main.lua")
+require("entity_hider").Start()
 local currentDraw = draw
 local checks = 0
 
@@ -52,6 +54,11 @@ expect(ordinary, {}, true, "default drawing")
 expect(ordinary, { enabled = false, allNPCs = true }, true, "disabled plugin")
 expect(ordinary, { allNPCs = true }, false, "general NPC toggle")
 expect(familiar, { allNPCs = true }, true, "general toggle excludes familiars")
+expect(npc("Fishing spot", false), { allNPCs = true }, true, "general toggle excludes fishing spots")
+expect(npc("Fishing Spot", false), { allNPCs = true }, true, "fishing spot detection ignores case")
+expect(npc("Deep sea fishing spot", false), { allNPCs = true }, true, "named fishing spot variant")
+expect(npc("Fishing tutor", false), { allNPCs = true }, false, "fishing NPCs remain subject to general toggle")
+expect(npc("Fishing spot", false), { allNPCs = true, customNPCs = "Fishing spot" }, false, "custom list can still hide fishing spots")
 expect(familiar, { allFamiliars = true }, false, "familiar toggle")
 expect(drake, { drakePets = true }, false, "drake toggle")
 expect(ordinary, { drakePets = true }, true, "drake toggle excludes other NPCs")
