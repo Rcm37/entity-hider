@@ -17,62 +17,7 @@ function PluginShutdown()
 end
 
 
-Event.EntityDraw.Subscribe("entity-hider-entity-draw", function(entityEvent)
-    if not Settings.get("enabled") then
-        return true
-    end
-    -- Player type hiders
-    if entityEvent ~= nil and entityEvent.entityType == EntityType.PLAYER then
-        if entityEvent.playerEntity.isValid and entityEvent.playerEntity.displayName == PlayerList.Self().displayName then
-            return not Settings.get("localPlayer")
-        end
-        if entityEvent.playerEntity.isValid and ListContains(Settings.get("customRSNs"), entityEvent.playerEntity.displayName, true) then
-            return false
-        end
-        return not Settings.get("otherPlayers")
-    end
-    -- NPC type hiders
-    if NPCEntitySafetyCheckPassed(entityEvent) then
-        if Settings.get("conjures") then
-            if ConjureLookupTable[entityEvent.npcEntity.config.id] then
-                return false
-            else
-                -- Adding this return since people prefered conjures not being turned off by the All NPC toggle
-                return true
-            end
-        end
-        if Settings.get("allNPCs") then
-            -- exclude familiars since users aren't likely to expect an NPC toggle to hide them
-            if not entityEvent.npcEntity.config.isFamiliar then
-                return false
-            end
-        end
-        if string.find(string.lower(entityEvent.npcEntity.displayName), "spider") then
-            return not Settings.get("spiders")
-        end
-        if Settings.get("allFamiliars") then
-            if entityEvent.npcEntity.config.isFamiliar then
-                return false
-            end
-        end
-        if not Settings.get("allFamiliars") and Settings.get("drakePets") then
-            if DrakeLookupTable[entityEvent.npcEntity.config.id] then
-                return false
-            end
-        end
-        
-        if ListContains(Settings.get("customNPCs"), entityEvent.npcEntity.displayName, false) and not entityEvent.npcEntity.config.isFamiliar then
-            return false
-        end
-
-        if entityEvent.npcEntity.config.isFamiliar and ListContains(Settings.get("customFamiliars"), entityEvent.npcEntity.displayName, false) then
-            return false
-        end
-    end
-    return true
-end)
-
-DrakeLookupTable = {
+local DrakeLookupTable = {
     [id.NPC.MTX_PET_DRAKE] = true,
     [id.NPC.MTX_PET_SHADOW_DRAKE] = true,
     [id.NPC.MTX_PET_DRAKE_JUVI] = true,
@@ -107,7 +52,7 @@ DrakeLookupTable = {
     [id.NPC.PREM23_PET_POH] = true
 }
 
-ConjureLookupTable = {
+local ConjureLookupTable = {
     [id.NPC.COMBATV2_NECROMANCY_SPIRIT_SKELETON_WARRIOR] = true,
     [id.NPC.COMBATV2_NECROMANCY_SPIRIT_PUTRID_ZOMBIE] = true,
     [id.NPC.COMBATV2_NECROMANCY_SPIRIT_VENGEFUL_GHOST] = true,
@@ -117,16 +62,13 @@ ConjureLookupTable = {
 }
 
 
-function NPCEntitySafetyCheckPassed(entityEvent)
-    return entityEvent ~= nil
-        and entityEvent.entityType == EntityType.NPC
-        and entityEvent.npcEntity ~= nil
-        and entityEvent.npcEntity.config ~= nil
-        and entityEvent.npcEntity.config.id ~= nil
-        and entityEvent.npcEntity.config.isFamiliar ~= nil
+local function NormalizeName(name)
+    return name:lower()
+        :gsub("\195\130\194\160", " ")
+        :gsub("\194\160", " ")
 end
 
-function ListContains(list, name, isPlayer)
+local function ListContains(list, name, isPlayer)
     list = string.lower(list):gsub("%s*,%s*", ",")
     name = string.lower(name)
     -- npc names seem to be fine with spaces, only player names have the weird non-breaking thing
@@ -137,8 +79,93 @@ function ListContains(list, name, isPlayer)
     return ("," .. list .. ","):find("," .. name .. ",", 1, true) ~= nil
 end
 
-function NormalizeName(name)
-    return name:lower()
-        :gsub("\195\130\194\160", " ")
-        :gsub("\194\160", " ")
+local function ShouldDrawPlayer(player)
+    if player == nil then
+        return true
+    end
+
+    if player.isValid then
+        local self = PlayerList.Self()
+        if self ~= nil and player.displayName == self.displayName then
+            return not Settings.get("localPlayer")
+        end
+        if ListContains(Settings.get("customRSNs"), player.displayName, true) then
+            return false
+        end
+    end
+
+    return not Settings.get("otherPlayers")
 end
+
+-- Each rule returns false to hide or nil to continue checking other filters.
+-- Add new NPC filters here. An NPC is drawn only if no rule hides it.
+local NPCDrawRules = {
+    function(npc)
+        if Settings.get("conjures") and ConjureLookupTable[npc.config.id] then
+            return false
+        end
+    end,
+    function(npc)
+        -- Familiars / pets, and conjures have separate toggles.
+        if Settings.get("allNPCs") and not npc.config.isFamiliar
+            and not ConjureLookupTable[npc.config.id] then
+            return false
+        end
+    end,
+    function(npc)
+        if Settings.get("spiders") and string.find(string.lower(npc.displayName), "spider") then
+            return false
+        end
+    end,
+    function(npc)
+        if Settings.get("allFamiliars") and npc.config.isFamiliar then
+            return false
+        end
+    end,
+    function(npc)
+        if not Settings.get("allFamiliars") and Settings.get("drakePets")
+            and DrakeLookupTable[npc.config.id] then
+            return false
+        end
+    end,
+    function(npc)
+        local setting = npc.config.isFamiliar and "customFamiliars" or "customNPCs"
+        if ListContains(Settings.get(setting), npc.displayName, false) then
+            return false
+        end
+    end,
+}
+
+local function ShouldDrawNPC(npc)
+    if npc == nil or npc.config == nil
+        or npc.config.id == nil or npc.config.isFamiliar == nil then
+        return true
+    end
+
+    for _, rule in ipairs(NPCDrawRules) do
+        local shouldDraw = rule(npc)
+        if shouldDraw ~= nil then
+            return shouldDraw
+        end
+    end
+
+    return true
+end
+
+local DrawHandlers = {
+    [EntityType.PLAYER] = function(event) return ShouldDrawPlayer(event.playerEntity) end,
+    [EntityType.NPC] = function(event) return ShouldDrawNPC(event.npcEntity) end,
+}
+
+Event.EntityDraw.Subscribe("entity-hider-entity-draw", function(event)
+    if not Settings.get("enabled") or event == nil then
+        return true
+    end
+
+    local handler = DrawHandlers[event.entityType]
+    if handler then
+        return handler(event)
+    end
+
+    return true
+end)
