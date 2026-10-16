@@ -13,8 +13,7 @@ function Names.Key(name, isPlayer)
 end
 
 function Names.Contains(list, name, isPlayer, cacheKey)
-    -- Keep only the latest parsed value for each logical list, so typing edits
-    -- does not leave a cache entry for every historical version of the text.
+    -- Cache only the latest text for each list; discard prior versions after edits.
     cacheKey = cacheKey or (isPlayer and "players" or "npcs")
     local cached = parsedLists[cacheKey]
     local playerNames = isPlayer == true

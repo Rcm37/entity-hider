@@ -96,7 +96,7 @@ end
 
 local active = false
 
--- Pausing changes only the event subscription; session state is kept intact.
+-- Keep the last-hide undo state when disabled.
 local function setEnabled(enabled)
     if active == enabled then return end
     if enabled then

@@ -130,7 +130,6 @@ end
 
 local active = false
 
--- Pausing changes only the event subscription; session state is kept intact.
 local function setEnabled(enabled)
     if active == enabled then return end
     if enabled then
