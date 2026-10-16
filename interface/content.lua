@@ -1,26 +1,44 @@
-local contentView
+local view
 local Settings = require("settings")
-local UIUtils = require("interface/ui_utils")
-Event.ContentLayerReady.Subscribe("entity-hider-content-pane", function(event)
-    if contentView then contentView:Destroy() end
+local RightClickHider = require("right_click_hider")
+local ContentPane = {}
+local EVENT_ID = "entity-hider-content-pane"
+local lastHiddenText, undoButton
+
+local function refreshLastHidden()
+    if not view then return end
+    local name, kind = RightClickHider.GetLastHidden()
+    lastHiddenText.content = name and ("Most recently hidden: " .. name .. " (" .. kind .. ")")
+        or "Most recently hidden: None"
+    undoButton:SetDisabled(name == nil)
+end
+
+local function closeView()
+    RightClickHider.Unsubscribe("content-pane")
+    if view then view:Destroy() end
+    view, lastHiddenText, undoButton = nil, nil, nil
+end
+
+local function onLayerReady(event)
+    closeView()
 
     local parent = event.component
-    contentView = prettyui.SimpleView.new(parent, {
+    view = prettyui.SimpleView.new(parent, {
         width = parent.width,
         height = parent.height,
     })
 
-    contentView:AddTitle("Global Toggle")
-    contentView:AddCheckboxButton({
+    view:AddTitle("Global Toggle")
+    view:AddCheckboxButton({
         { text = "Enable Plugin", value = "enabled", selected = Settings.get("enabled") },
     }, {
         onChange = function(_, _, changedValue, selected)
-            UIUtils.updateSettings(changedValue, selected)
+            Settings.update(changedValue, selected)
         end,
     })
 
-    contentView:AddTitle("Toggle Options")
-    contentView:AddCheckboxButton({
+    view:AddTitle("Toggle Options")
+    view:AddCheckboxButton({
         { text = "Hide Yourself",    value = "localPlayer",  selected = Settings.get("localPlayer") },
         { text = "Hide Other Players",   value = "otherPlayers", selected = Settings.get("otherPlayers") },
         { text = "Hide NPCs",            value = "allNPCs",      selected = Settings.get("allNPCs") },
@@ -30,10 +48,37 @@ Event.ContentLayerReady.Subscribe("entity-hider-content-pane", function(event)
         { text = "Hide Spiders",   value = "spiders", selected = Settings.get("spiders") },
     }, {
         onChange = function(_, _, changedValue, selected)
-            UIUtils.updateSettings(changedValue, selected)
+            Settings.update(changedValue, selected)
         end,
     })
-    contentView:AddDivider()
-    contentView:AddText("Manage Entity Hider settings via Plugin Hub to set custom configurations!")
-end)
-return contentView
+    view:AddDivider()
+    view:AddTitle("Right-click Hiding")
+    view:AddCheckboxButton({
+        { text = "Require Ctrl + Shift for Hide options", value = "rightClickRequireCtrlShift",
+            selected = Settings.get("rightClickRequireCtrlShift") },
+    }, {
+        onChange = function(_, _, changedValue, selected)
+            Settings.update(changedValue, selected)
+        end,
+    })
+    view:AddText("Right-click a player or NPC and choose Hide to save its name to your custom hide lists.")
+    lastHiddenText = view:AddText({ text = "", height = 60, maxLines = 3 })
+    undoButton = view:AddSimpleButton("Undo Last Hide", function()
+        RightClickHider.Undo()
+    end, { disabled = true })
+    RightClickHider.Subscribe("content-pane", refreshLastHidden)
+    refreshLastHidden()
+    view:AddDivider()
+    view:AddText("Manage Entity Hider settings via Plugin Hub to set custom configurations!")
+end
+
+function ContentPane.Start()
+    Event.ContentLayerReady.Subscribe(EVENT_ID, onLayerReady)
+end
+
+function ContentPane.Shutdown()
+    Event.ContentLayerReady.Unsubscribe(EVENT_ID)
+    closeView()
+end
+
+return ContentPane
