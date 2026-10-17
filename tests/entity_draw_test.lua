@@ -18,7 +18,7 @@ local checks = 0
 
 local function reset(overrides)
     settings = {
-        enabled = true, conjures = false, allNPCs = false, spiders = false,
+        enabled = true, conjures = false, allNPCs = false,
         allFamiliars = false, drakePets = false, localPlayer = false,
         otherPlayers = false, customRSNs = "", customNPCs = "", customFamiliars = "",
     }
@@ -71,8 +71,7 @@ expect(ordinary, { conjures = true, allNPCs = true }, false, "conjure toggle per
 expect(ordinary, { conjures = true, customNPCs = "Guard" }, false, "conjure toggle permits custom NPC filtering")
 expect(familiar, { conjures = true, allFamiliars = true }, false, "conjure toggle permits familiar filtering")
 expect(drake, { conjures = true, drakePets = true }, false, "conjure toggle permits drake filtering")
-expect(spider, { conjures = true, spiders = true }, false, "conjure toggle permits spider filtering")
-expect(spider, { spiders = true }, false, "spider toggle")
+expect(spider, { spiders = true }, true, "obsolete spider setting no longer hides models")
 expect(spider, {}, true, "spiders remain visible by default")
 expect(spider, { allFamiliars = true }, false, "spider permits familiar filtering")
 expect(spider, { customFamiliars = "Spider pet" }, false, "spider permits custom familiar filtering")
@@ -100,7 +99,7 @@ self = { displayName = "Local Player" }
 
 -- Enabling another hide filter must never reveal an already hidden NPC.
 do
-    local toggles = { "conjures", "allNPCs", "spiders", "allFamiliars", "drakePets" }
+    local toggles = { "conjures", "allNPCs", "allFamiliars", "drakePets" }
     local entities = { ordinary, familiar, spider, drake, conjure,
         npc("Spider", false), npc("Spider drake", true, id.NPC.MTX_PET_DRAKE) }
     for mask = 0, 2 ^ #toggles - 1 do

@@ -83,9 +83,6 @@ local NPCHideRules = {
             and not IsFishingSpot(npc)
     end,
     function(npc)
-        return Settings.get("spiders") and string.find(string.lower(npc.displayName), "spider") ~= nil
-    end,
-    function(npc)
         return Settings.get("allFamiliars") and npc.config.isFamiliar
     end,
     function(npc)

@@ -43,10 +43,6 @@ local ValidSettings = {
         default = false,
         type = "boolean"
     },
-    spiders = {
-        default = false,
-        type = "boolean"
-    },
     rightClickRequireCtrlShift = {
         default = false,
         type = "boolean"
