@@ -51,6 +51,11 @@ local drake = npc("Drake", true, id.NPC.MTX_PET_DRAKE)
 local conjure = npc("Ghost", false, id.NPC.COMBATV2_NECROMANCY_SPIRIT_VENGEFUL_GHOST)
 
 expect(ordinary, {}, true, "default drawing")
+expect(npc("", false, id.NPC.EGWD_JAS_BOSS_LIGHTNING_STRIKE), {}, true, "unnamed Kerapac effect remains visible by default")
+expect(npc("", false, id.NPC.EGWD_JAS_BOSS_LIGHTNING_STRIKE),
+    { customNPCs = "Guard, ," }, true, "empty custom entries do not hide unnamed Kerapac effects")
+expect(npc("  ", false), {}, true, "blank NPC name remains visible by default")
+expect(npc("", true), {}, true, "unnamed familiar remains visible by default")
 expect(ordinary, { enabled = false, allNPCs = true }, true, "disabled plugin")
 expect(ordinary, { allNPCs = true }, false, "general NPC toggle")
 expect(familiar, { allNPCs = true }, true, "general toggle excludes familiars")

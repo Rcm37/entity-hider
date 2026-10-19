@@ -20,7 +20,9 @@ function Names.Contains(list, name, isPlayer, cacheKey)
     if not cached or cached.list ~= list or cached.isPlayer ~= playerNames then
         local names = {}
         for entry in (list .. ","):gmatch("(.-),") do
-            names[Names.Key(entry, playerNames)] = true
+            local key = Names.Key(entry, playerNames)
+            -- Empty entries must not match unnamed NPCs such as kerapac lightning.
+            if key ~= "" then names[key] = true end
         end
         cached = { list = list, isPlayer = playerNames, names = names }
         parsedLists[cacheKey] = cached

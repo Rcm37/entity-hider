@@ -12,6 +12,12 @@ expect(Names.Contains("Other\194\160Player", "Other Player", true, "customRSNs")
 expect(Names.Contains("Other\194\160Player", "Other Player", false, "customNPCs"), false, "keep NPC spaces literal")
 expect(Names.Contains("Yak", "Yak", false, "customFamiliars"), true, "separate familiar list")
 expect(Names.Contains("Guard", "Yak", false, "customNPCs"), false, "lists do not share names")
+expect(Names.Contains("", "", false, "customNPCs"), false, "empty list does not hide unnamed NPCs")
+expect(Names.Contains(" , , ", "  ", false, "customNPCs"), false, "blank entries do not hide blank names")
+expect(Names.Contains("Guard,", "", false, "customNPCs"), false, "trailing separator does not hide unnamed NPCs")
+expect(Names.Contains(",Guard,, Yak, ", "Yak", false, "customNPCs"), true, "blank entries preserve named matches")
+expect(Names.Contains("", "", false, "customFamiliars"), false, "empty familiar list does not hide unnamed familiars")
+expect(Names.Contains("", "", true, "customRSNs"), false, "empty player list does not hide blank names")
 
 -- Count normalization calls to verify unchanged lists are not parsed again.
 local originalKey, calls = Names.Key, 0
