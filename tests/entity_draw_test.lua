@@ -65,6 +65,24 @@ expect(npc("Deep sea fishing spot", false), { allNPCs = true }, true, "named fis
 expect(npc("Fishing tutor", false), { allNPCs = true }, false, "fishing NPCs remain subject to general toggle")
 expect(npc("Fishing spot", false), { allNPCs = true, customNPCs = "Fishing spot" }, false, "custom list can still hide fishing spots")
 expect(familiar, { allFamiliars = true }, false, "familiar toggle")
+for _, configName in ipairs({
+    "MENAPHOS_MAGIC_CARPET_IMPERIAL", "MENAPHOS_MAGIC_CARPET_IMPERIAL_POH",
+    "MENAPHOS_MAGIC_CARPET_MERCHANT", "MENAPHOS_MAGIC_CARPET_MERCHANT_POH",
+    "MENAPHOS_MAGIC_CARPET_SLAVE", "MENAPHOS_MAGIC_CARPET_SLAVE_POH",
+    "MENAPHOS_MAGIC_CARPET_PORT", "MENAPHOS_MAGIC_CARPET_PORT_POH",
+    "MENAPHOS_GOLDEN_PATH_MAGIC_CARPET_BASIC", "MENAPHOS_GOLDEN_PATH_MAGIC_CARPET_BASIC_POH",
+    "MENAPHOS_GOLDEN_PATH_MAGIC_CARPET_GOLD", "MENAPHOS_GOLDEN_PATH_MAGIC_CARPET_GOLD_POH",
+}) do
+    local carpet = npc("Magic carpet", false, id.NPC[configName])
+    expect(carpet, {}, true, configName .. " visible by default")
+    expect(carpet, { allNPCs = true }, true, configName .. " excluded from NPC toggle")
+    expect(carpet, { allFamiliars = true }, false, configName .. " uses familiar toggle")
+    expect(carpet, { customNPCs = "Magic carpet" }, true, configName .. " ignores NPC list")
+    expect(carpet, { customFamiliars = "Magic carpet" }, false, configName .. " uses familiar list")
+end
+local carpetSeller = npc("Carpet merchant", false, id.NPC.MAGIC_CARPET_SELLER1)
+expect(carpetSeller, { allNPCs = true }, false, "carpet seller remains an ordinary NPC")
+expect(carpetSeller, { allFamiliars = true }, true, "carpet seller is not a familiar")
 expect(drake, { drakePets = true }, false, "drake toggle")
 expect(ordinary, { drakePets = true }, true, "drake toggle excludes other NPCs")
 expect(conjure, { conjures = true }, false, "conjure toggle")

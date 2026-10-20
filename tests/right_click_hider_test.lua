@@ -232,6 +232,20 @@ undo.action()
 expect(shownNPC(fishingSpot), true, "undo restores fishing spot with general toggle on")
 Settings.update("allNPCs", false)
 
+-- Carpet pets use familiar lists even when the game reports isFamiliar=false.
+local carpet = npc("Magic carpet")
+carpet.config.id = id.NPC.MENAPHOS_MAGIC_CARPET_IMPERIAL
+local carpetMenu = menu({ entry(carpet) })
+expect(#carpetMenu.added, 1, "carpet has a hide option")
+carpetMenu.added[1].click()
+expect(Settings.get("customFamiliars"), "Yak, Magic carpet", "carpet saved to familiar list")
+expect(Settings.get("customNPCs"), "Other, New NPC", "carpet leaves NPC list unchanged")
+expect(shownNPC(carpet), false, "carpet hidden by familiar name")
+expect(status.content, "Most recently hidden: Magic carpet (Familiar / pet)", "carpet uses familiar status")
+undo.action()
+expect(Settings.get("customFamiliars"), "Yak", "carpet undo restores familiar list")
+expect(shownNPC(carpet), true, "carpet visible after undo")
+
 local pending = menu({ entry(guard) })
 Settings.update("enabled", false)
 expect(#menu({ entry(guard) }).added, 0, "disabled plugin omits menu entries")

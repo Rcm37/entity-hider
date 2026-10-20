@@ -1,5 +1,6 @@
 local Settings = require("settings")
 local Names = require("names")
+local Familiars = require("familiars")
 local Hider = {}
 local EVENT_ID = "entity-hider-right-click"
 local lastHidden
@@ -49,8 +50,9 @@ local function targetFromEntry(entry)
     if entry.actionEntryType == MiniMenuEntryType.NPC then
         entity = entry.npcData and entry.npcData.entity
         if not entity or not entity.isValid or not entity.config then return end
-        setting = entity.config.isFamiliar and "customFamiliars" or "customNPCs"
-        kind = entity.config.isFamiliar and "Familiar / pet" or "NPC"
+        local isFamiliar = Familiars.IsFamiliar(entity)
+        setting = isFamiliar and "customFamiliars" or "customNPCs"
+        kind = isFamiliar and "Familiar / pet" or "NPC"
     elseif entry.actionEntryType == MiniMenuEntryType.PLAYER then
         entity = entry.playerData and entry.playerData.entity
         if not entity or not entity.isValid then return end

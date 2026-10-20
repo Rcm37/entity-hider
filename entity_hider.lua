@@ -1,5 +1,6 @@
 local Settings = require("settings")
 local Names = require("names")
+local Familiars = require("familiars")
 local EntityHider = {}
 local EVENT_ID = "entity-hider-entity-draw"
 local DrakeLookupTable = {
@@ -78,18 +79,18 @@ local NPCHideRules = {
     function(npc)
         -- Keep fishing spots visible; custom-name rules can still hide them.
         -- Familiars / pets, and conjures have separate toggles.
-        return Settings.get("allNPCs") and not npc.config.isFamiliar
+        return Settings.get("allNPCs") and not Familiars.IsFamiliar(npc)
             and not ConjureLookupTable[npc.config.id]
             and not IsFishingSpot(npc)
     end,
     function(npc)
-        return Settings.get("allFamiliars") and npc.config.isFamiliar
+        return Settings.get("allFamiliars") and Familiars.IsFamiliar(npc)
     end,
     function(npc)
         return Settings.get("drakePets") and DrakeLookupTable[npc.config.id] == true
     end,
     function(npc)
-        local setting = npc.config.isFamiliar and "customFamiliars" or "customNPCs"
+        local setting = Familiars.IsFamiliar(npc) and "customFamiliars" or "customNPCs"
         return Names.Contains(Settings.get(setting), npc.displayName, false, setting)
     end,
 }
