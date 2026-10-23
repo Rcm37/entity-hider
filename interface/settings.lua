@@ -6,6 +6,7 @@ local EVENT_ID = "entity-hider-settings-pane"
 local fields = {}
 
 local function closeView()
+    Settings.Unsubscribe(EVENT_ID)
     RightClickHider.Unsubscribe("settings-pane")
     if view then view:Destroy() end
     view = nil
@@ -21,6 +22,21 @@ local function onLayerReady(event)
         height = parent.height,
     })
     view:AddTitle("Custom Inputs")
+    view:AddText("Custom input preset")
+    local presetDropdown = view:AddComboBox({
+        entries = Settings.GetPresetEntries(),
+        selectedID = tonumber(Settings.get("activePreset")),
+        maxVisibleEntries = Settings.PRESET_COUNT,
+        onChange = function(_, presetID)
+            Settings.update("activePreset", tostring(presetID))
+        end,
+    })
+    view:AddText("Preset name")
+    local presetNameField = view:AddTextField({
+        text = Settings.get("presetName"),
+        placeholder = "Preset name",
+        onChange = function(_, _, text) Settings.update("presetName", text) end,
+    })
     view:AddText({
         text = "Supports text selection, copy, and paste"
     })
@@ -54,9 +70,19 @@ local function onLayerReady(event)
             Settings.update("customFamiliars", text)
         end,
     })
-    RightClickHider.Subscribe("settings-pane", function()
+    local function refreshFields()
         for setting, field in pairs(fields) do
             field:SetText(Settings.get(setting))
+        end
+    end
+    RightClickHider.Subscribe("settings-pane", refreshFields)
+    Settings.Subscribe(EVENT_ID, function(name)
+        if name == "activePreset" or name == "presetName" then
+            presetDropdown:SetEntries(Settings.GetPresetEntries(), tonumber(Settings.get("activePreset")))
+        end
+        if name == "activePreset" then
+            presetNameField:SetText(Settings.get("presetName"))
+            refreshFields()
         end
     end)
 end

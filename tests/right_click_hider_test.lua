@@ -47,6 +47,18 @@ local views = {}
 prettyui = { SimpleView = { new = function()
     local view = { text = {}, fields = {}, buttons = {}, checkboxes = {} }
     function view:AddTitle() end
+    function view:AddComboBox(options)
+        local combo = { entries = options.entries, selectedID = options.selectedID }
+        function combo:SetEntries(entries, selectedID)
+            self.entries, self.selectedID = entries, selectedID
+        end
+        function combo:Select(selectedID, triggerEvents)
+            self.selectedID = selectedID
+            if triggerEvents then options.onChange(self, selectedID) end
+        end
+        self.combo = combo
+        return combo
+    end
     function view:AddDivider() end
     function view:AddCheckboxButton(items, options)
         for _, item in ipairs(items) do
@@ -164,7 +176,7 @@ choices.added[1].click()
 guard.isValid = true
 expect(Settings.get("customNPCs"), "Other, Guard", "append NPC name")
 expect(saved.entity_hider_customNPCs, "Other, Guard", "persist NPC name")
-expect(settingsPane.fields[2].text, "Other, Guard", "settings field refreshed")
+expect(settingsPane.fields[3].text, "Other, Guard", "settings field refreshed")
 expect(shownNPC(npc("Guard")), false, "hide all NPCs sharing name")
 expect(status.content, "Most recently hidden: Guard (NPC)", "live NPC status")
 expect(undo.disabled, false, "undo enabled")
@@ -192,7 +204,7 @@ expect(Settings.get("customNPCs"), "Other, Guard", "repeated callback does not d
 Settings.update("customNPCs", "Other, Guard, New NPC")
 undo.action()
 expect(Settings.get("customNPCs"), "Other, New NPC", "undo preserves subsequent edits")
-expect(settingsPane.fields[2].text, "Other, New NPC", "undo refreshes settings")
+expect(settingsPane.fields[3].text, "Other, New NPC", "undo refreshes settings")
 expect(shownNPC(guard), true, "undo restores visibility")
 expect(undo.disabled, true, "undo consumed")
 expect(status.content, "Most recently hidden: None", "undo clears status")
@@ -205,7 +217,7 @@ choices.added[3].click()
 expect(Settings.get("customRSNs"), "Other Player", "normalize saved player name")
 expect(shownPlayer(otherPlayer), false, "player hidden with normalized name")
 expect(status.content, "Most recently hidden: Other Player (Player)", "player status")
-expect(settingsPane.fields[1].text, "Other Player", "player field refreshed")
+expect(settingsPane.fields[2].text, "Other Player", "player field refreshed")
 undo.action()
 expect(shownPlayer(otherPlayer), true, "undo player hiding")
 expect(shownNPC(yak), false, "undo only latest addition")
@@ -261,6 +273,39 @@ for _, configName in ipairs({ "APRIL_FOOLS_2021_PET_NPC", "APRIL_FOOLS_2021_PET_
     expect(shownNPC(pet), true, configName .. " visible after undo")
 end
 
+-- Settings presets swap live filters and fields; the content pane has no preset controls.
+local staleMenu = menu({ entry(guard) })
+expect(content.combo, nil, "content pane has no preset dropdown")
+expect(#settingsPane.combo.entries, 5, "settings offers five presets")
+settingsPane.combo:Select(2, true)
+expect(Settings.get("activePreset"), "2", "settings switches preset")
+expect(settingsPane.fields[1].text, "Preset 2", "name field follows selection")
+expect(settingsPane.fields[3].text, "", "NPC field follows selection")
+expect(shownNPC(yak), true, "switch removes previous familiar filter")
+expect(status.content, "Most recently hidden: None", "switch clears undo status")
+expect(undo.disabled, true, "switch disables undo")
+staleMenu.added[1].click()
+expect(Settings.get("customNPCs"), "", "old menu cannot change another preset")
+settingsPane.fields[1].onChange(nil, nil, "Skilling")
+expect(settingsPane.combo.entries[2].label, "Skilling", "renaming updates settings dropdown")
+settingsPane.fields[2].onChange(nil, nil, "Other Player")
+settingsPane.fields[3].onChange(nil, nil, "Guard")
+settingsPane.fields[4].onChange(nil, nil, "Magic carpet")
+expect(shownNPC(guard), false, "preset NPC list filters immediately")
+expect(shownPlayer(otherPlayer), false, "preset player list filters immediately")
+expect(shownNPC(carpet), false, "preset familiar list filters immediately")
+local presetHide = menu({ entry(npc("Preset NPC")) })
+presetHide.added[1].click()
+expect(Settings.get("customNPCs"), "Guard, Preset NPC", "right click adds to selected preset")
+undo.action()
+expect(Settings.get("customNPCs"), "Guard", "undo edits selected preset")
+settingsPane.combo:Select(1, true)
+expect(Settings.get("customNPCs"), "Other, New NPC", "preset 1 NPC list retained")
+expect(Settings.get("customFamiliars"), "Yak", "preset 1 familiar list retained")
+expect(settingsPane.fields[3].text, "Other, New NPC", "switch restores visible NPC field")
+expect(shownNPC(guard), true, "switch refreshes NPC filter activity")
+expect(shownPlayer(otherPlayer), true, "switch refreshes player filter activity")
+
 local pending = menu({ entry(guard) })
 Settings.update("enabled", false)
 expect(#menu({ entry(guard) }).added, 0, "disabled plugin omits menu entries")
@@ -287,7 +332,7 @@ expect(reopened.text[2].content, "Most recently hidden: Guard (NPC)", "reopened 
 expect(reopened.buttons["Undo Last Hide"].disabled, false, "reopened undo enabled")
 emit("SettingsLayerReady", parent)
 expect(settingsPane.destroyed, true, "old settings destroyed on reopen")
-expect(views[#views].fields[2].text, "Manual Edit, Guard", "reopened fields use saved names")
+expect(views[#views].fields[3].text, "Manual Edit, Guard", "reopened fields use saved names")
 
 PluginShutdown()
 expect(reopened.destroyed, true, "content destroyed on shutdown")
@@ -305,7 +350,7 @@ emit("ContentLayerReady", parent)
 local restarted = views[#views]
 expect(restarted.text[2].content, "Most recently hidden: None", "restart clears session undo state")
 emit("SettingsLayerReady", parent)
-expect(views[#views].fields[2].text, "Manual Edit, Guard", "restart retains saved lists")
+expect(views[#views].fields[3].text, "Manual Edit, Guard", "restart retains saved lists")
 PluginShutdown()
 expect(restarted.destroyed, true, "restarted pane cleaned up")
 for _, module in ipairs(modules) do module.Start() end

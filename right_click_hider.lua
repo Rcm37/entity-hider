@@ -25,7 +25,7 @@ end
 
 local function hide(target)
     -- Capture names rather than retaining entity userdata after menu creation.
-    if not Settings.get("enabled") then return end
+    if not Settings.get("enabled") or target.preset ~= Settings.get("activePreset") then return end
     local list = Settings.get(target.setting)
     if Names.Contains(list, target.name, target.isPlayer, target.setting) then return end
     local updated = list:match("^%s*$") and target.name or (list .. ", " .. target.name)
@@ -68,7 +68,8 @@ local function targetFromEntry(entry)
     -- Commas separate saved names, so such names cannot be represented in a list.
     if name == "" or name:find(",", 1, true) then return end
     if Names.Contains(Settings.get(setting), name, isPlayer, setting) then return end
-    return { name = name, setting = setting, kind = kind, isPlayer = isPlayer }
+    return { name = name, setting = setting, kind = kind, isPlayer = isPlayer,
+        preset = Settings.get("activePreset") }
 end
 
 local function onMenuReady(event)
@@ -111,6 +112,10 @@ end
 
 local function onSettingChanged(name, value)
     if name == "enabled" then setEnabled(value) end
+    if name == "activePreset" then
+        lastHidden = nil
+        notify()
+    end
 end
 
 function Hider.Start()
