@@ -48,6 +48,7 @@ local function onLayerReady(event)
         { text = "Hide Conjures",        value = "conjures",     selected = Settings.get("conjures") },
         { text = "Hide All Familiars / Pets",   value = "allFamiliars", selected = Settings.get("allFamiliars") },
         { text = "Hide Drake Familiars", value = "drakePets",    selected = Settings.get("drakePets") },
+        { text = "Hide Spiders",        value = "spiders",      selected = Settings.get("spiders") },
     }, {
         onChange = function(_, _, changedValue, selected)
             Settings.update(changedValue, selected)
