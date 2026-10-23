@@ -20,8 +20,9 @@ The plugin is enabled by default, with all hide filters initially off.
 | Hide Conjures | Hides supported Necromancy conjures. |
 | Hide All Familiars / Pets | Hides NPCs marked as familiars by the game and magic carpet pets. |
 | Hide Drake Familiars | Hides the drake pets covered by the plugin's ID list. |
+| Hide Spiders | Hides NPCs and familiars/pets whose names contain "spider", ignoring case. |
 
-Filters combine: any matching filter hides an NPC. Custom name lists can also hide fishing spots and conjures excluded by the general NPC toggle. Spider coverage is available in the separate **Arachnophobia** plugin.
+Filters combine: any matching filter hides an NPC. Custom name lists can also hide fishing spots and conjures excluded by the general NPC toggle.
 
 Magic carpet pets (including their player-owned house variants) use the familiar/pet toggle and name list, and are excluded from Hide NPCs.
 
