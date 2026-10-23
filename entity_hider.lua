@@ -116,8 +116,41 @@ local DrawHandlers = {
     [EntityType.NPC] = function(event) return ShouldDrawNPC(event.npcEntity) end,
 }
 
+local hasNPCFilters = false
+local hasPlayerFilters = false
+local NPCFilterSettings = {
+    allNPCs = true, conjures = true, allFamiliars = true, drakePets = true,
+    customNPCs = true, customFamiliars = true,
+}
+local PlayerFilterSettings = {
+    localPlayer = true, otherPlayers = true, customRSNs = true,
+}
+
+local function refreshNPCFilters()
+    hasNPCFilters = Settings.get("allNPCs")
+        or Settings.get("conjures")
+        or Settings.get("allFamiliars")
+        or Settings.get("drakePets")
+        or Settings.get("customNPCs") ~= ""
+        or Settings.get("customFamiliars") ~= ""
+end
+
+local function refreshPlayerFilters()
+    hasPlayerFilters = Settings.get("localPlayer")
+        or Settings.get("otherPlayers")
+        or Settings.get("customRSNs") ~= ""
+end
+
 local function onEntityDraw(event)
     if not Settings.get("enabled") or event == nil then
+        return true
+    end
+
+    -- Skip entity access and filtering when this type has no active hide options.
+    if event.entityType == EntityType.NPC and not hasNPCFilters then
+        return true
+    end
+    if event.entityType == EntityType.PLAYER and not hasPlayerFilters then
         return true
     end
 
@@ -143,9 +176,13 @@ end
 
 local function onSettingChanged(name, value)
     if name == "enabled" then setEnabled(value) end
+    if NPCFilterSettings[name] then refreshNPCFilters() end
+    if PlayerFilterSettings[name] then refreshPlayerFilters() end
 end
 
 function EntityHider.Start()
+    refreshNPCFilters()
+    refreshPlayerFilters()
     Settings.Subscribe(EVENT_ID, onSettingChanged)
     setEnabled(Settings.get("enabled"))
 end

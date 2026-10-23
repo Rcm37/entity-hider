@@ -1,20 +1,27 @@
 -- Run from entity-hider: lua tests/entity_draw_test.lua
 local settings = { enabled = true }
 local draw
+local onSettingChanged
 package.loaded.settings = {
     get = function(key) return settings[key] end,
-    Subscribe = function() end,
+    Subscribe = function(_, callback) onSettingChanged = callback end,
     Unsubscribe = function() end,
 }
 EntityType = { PLAYER = 1, NPC = 2 }
-Event = { EntityDraw = { Subscribe = function(_, callback) draw = callback end } }
+Event = { EntityDraw = {
+    Subscribe = function(_, callback) draw = callback end,
+    Unsubscribe = function() end,
+} }
 id = { NPC = setmetatable({}, { __index = function(_, key) return key end }) }
 local self = { displayName = "Local Player" }
 PlayerList = { Self = function() return self end }
 
-require("entity_hider").Start()
-local currentDraw = draw
 local checks = 0
+
+local function update(key, value)
+    settings[key] = value
+    onSettingChanged(key, value)
+end
 
 local function reset(overrides)
     settings = {
@@ -23,7 +30,15 @@ local function reset(overrides)
         otherPlayers = false, customRSNs = "", customNPCs = "", customFamiliars = "",
     }
     for key, value in pairs(overrides or {}) do settings[key] = value end
+    if onSettingChanged then
+        for key, value in pairs(settings) do onSettingChanged(key, value) end
+    end
 end
+
+reset()
+local EntityHider = require("entity_hider")
+EntityHider.Start()
+local currentDraw = draw
 
 local function npc(name, familiar, configID)
     return { entityType = EntityType.NPC, npcEntity = {
@@ -49,6 +64,57 @@ local familiar = npc("Yak", true)
 local spider = npc("Spider pet", true)
 local drake = npc("Drake", true, id.NPC.MTX_PET_DRAKE)
 local conjure = npc("Ghost", false, id.NPC.COMBATV2_NECROMANCY_SPIRIT_VENGEFUL_GHOST)
+
+-- Inactive filters should return before reading any entity data, even when the
+-- other entity type has active filters.
+local function untouchedEntityEvent(entityType)
+    return setmetatable({ entityType = entityType }, {
+        __index = function(_, key) error("unexpected entity access: " .. key) end,
+    })
+end
+expect(untouchedEntityEvent(EntityType.NPC), {}, true, "inactive NPC filters skip entity access")
+expect(untouchedEntityEvent(EntityType.NPC),
+    { localPlayer = true, otherPlayers = true, customRSNs = "Other Player" },
+    true, "player filters do not prevent NPC early return")
+expect(untouchedEntityEvent(EntityType.PLAYER), {}, true, "inactive player filters skip entity access")
+expect(untouchedEntityEvent(EntityType.PLAYER),
+    { allNPCs = true, conjures = true, allFamiliars = true, drakePets = true,
+        customNPCs = "Guard", customFamiliars = "Yak" },
+    true, "NPC filters do not prevent player early return")
+
+-- Every relevant setting must activate filtering and restore the early return
+-- when the final filter is removed.
+for _, case in ipairs({
+    { "allNPCs", true, ordinary },
+    { "conjures", true, conjure },
+    { "allFamiliars", true, familiar },
+    { "drakePets", true, drake },
+    { "customNPCs", "Guard", ordinary },
+    { "customFamiliars", "Yak", familiar },
+    { "localPlayer", true, player("Local Player") },
+    { "otherPlayers", true, player("Other Player") },
+    { "customRSNs", "Other Player", player("Other Player") },
+}) do
+    reset()
+    local key, value, event = case[1], case[2], case[3]
+    update(key, value)
+    assert(currentDraw(event) == false, key .. " activates filtering")
+    local inactive = ""
+    if type(value) == "boolean" then inactive = false end
+    update(key, inactive)
+    assert(currentDraw(untouchedEntityEvent(event.entityType)) == true,
+        key .. " removal restores early return")
+    checks = checks + 2
+end
+
+-- Startup must read saved filters even without a setting-change notification.
+EntityHider.Shutdown()
+settings.customNPCs = "Guard"
+settings.customRSNs = "Other Player"
+EntityHider.Start()
+assert(currentDraw(ordinary) == false, "startup reads saved NPC filters")
+assert(currentDraw(player("Other Player")) == false, "startup reads saved player filters")
+checks = checks + 2
 
 expect(ordinary, {}, true, "default drawing")
 expect(npc("", false, id.NPC.EGWD_JAS_BOSS_LIGHTNING_STRIKE), {}, true, "unnamed Kerapac effect remains visible by default")
@@ -139,16 +205,16 @@ do
                 customRSNs = "Local Player,Other Player",
             } or {})
             for bit, key in ipairs(toggles) do
-                settings[key] = math.floor(mask / 2 ^ (bit - 1)) % 2 == 1
+                update(key, math.floor(mask / 2 ^ (bit - 1)) % 2 == 1)
             end
             for index, event in ipairs(entities) do
                 local wasVisible = currentDraw(event)
                 for _, key in ipairs(toggles) do
                     local previous = settings[key]
-                    settings[key] = true
+                    update(key, true)
                     assert(wasVisible or currentDraw(event) == false,
                         key .. " revealed entity " .. index .. " for mask " .. mask)
-                    settings[key] = previous
+                    update(key, previous)
                     checks = checks + 1
                 end
             end
