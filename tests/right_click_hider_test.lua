@@ -246,6 +246,21 @@ undo.action()
 expect(Settings.get("customFamiliars"), "Yak", "carpet undo restores familiar list")
 expect(shownNPC(carpet), true, "carpet visible after undo")
 
+for _, configName in ipairs({ "APRIL_FOOLS_2021_PET_NPC", "APRIL_FOOLS_2021_PET_NPC_POH" }) do
+    local pet = npc("K'ril Psssutsaroth")
+    pet.config.id = id.NPC[configName]
+    local petMenu = menu({ entry(pet) })
+    expect(#petMenu.added, 1, configName .. " has a hide option")
+    petMenu.added[1].click()
+    expect(Settings.get("customFamiliars"), "Yak, K'ril Psssutsaroth", configName .. " saved to familiar list")
+    expect(Settings.get("customNPCs"), "Other, New NPC", configName .. " leaves NPC list unchanged")
+    expect(shownNPC(pet), false, configName .. " hidden by familiar name")
+    expect(status.content, "Most recently hidden: K'ril Psssutsaroth (Familiar / pet)", configName .. " uses familiar status")
+    undo.action()
+    expect(Settings.get("customFamiliars"), "Yak", configName .. " undo restores familiar list")
+    expect(shownNPC(pet), true, configName .. " visible after undo")
+end
+
 local pending = menu({ entry(guard) })
 Settings.update("enabled", false)
 expect(#menu({ entry(guard) }).added, 0, "disabled plugin omits menu entries")
