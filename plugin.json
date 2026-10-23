@@ -9,5 +9,5 @@
   },
   "optionalDependencies": {},
   "requiredPermissions": [],
-  "optionalPermissions": []
+  "optionalPermissions": ["trackingAccess"]
 }

@@ -4,9 +4,17 @@ A RuneScape plugin for reducing visual clutter by hiding selected players, NPCs,
 
 ## Setup
 
-Requires **PrettyUI** (dependency ID `6398181`). Load the `entity-hider` directory as a development plugin with PrettyUI available. The plugin requests no additional permissions.
+Requires **PrettyUI** (dependency ID `6398181`). Load the `entity-hider` directory as a development plugin with PrettyUI available. The optional **trackingAccess** permission is needed only for player-specific settings.
 
 Open its content pane for hide toggles and right-click options. Open its settings through **Plugin Hub** to edit saved name lists. Settings persist between sessions.
+
+## Settings storage
+
+Settings are global by default and will apply to all characters and clients. To save settings separately for each character, grant Entity Hider the optional **trackingAccess** permission in Plugin Hub, then enable **Use player-specific settings** in the settings layer while logged in. Enabling the checkbox asserts that permission is granted and that the tracking ID is available.
+
+Character settings use `entity_hider_player_<trackingID>_`, with the ID from `Player.GetTrackingID()`. Each character has independent hide toggles, modifier preference, preset names, preset selection, and custom lists. New characters start with defaults. The storage-mode checkbox itself is saved globally. Turning it off restores your global settings.
+
+While a character's tracking ID is unavailable after login or tracking access is revoked, character settings cannot be edited. They resume automatically when the ID and permission are available. Switching storage or characters clears right-click undo history.
 
 ## Hide options
 

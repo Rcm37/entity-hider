@@ -70,6 +70,35 @@ local function onLayerReady(event)
             Settings.update("customFamiliars", text)
         end,
     })
+    view:AddDivider()
+    view:AddTitle("Settings Storage")
+    local storageCheckbox = view:AddCheckboxButton({
+        { text = "Use player-specific settings", value = "playerSpecific",
+            selected = Settings.get("playerSpecific") },
+    }, {
+        onChange = function(control, _, _, selected)
+            -- Restore the prior state before an assertion can reject the change.
+            control:SetSelected("playerSpecific", Settings.get("playerSpecific"), false)
+            if selected then
+                assert(Plugin.HasPermission(PluginPermissions.trackingAccess),
+                    "Grant trackingAccess permission to enable player-specific settings")
+            end
+            Settings.update("playerSpecific", selected)
+            control:SetSelected("playerSpecific", Settings.get("playerSpecific"), false)
+        end,
+    })
+    view:AddText("Save settings separately for each character. Requires the optional trackingAccess permission in Plugin Hub. Turn off to use global settings.")
+    local storageStatus = view:AddText({ text = "" })
+    local function refreshStorage()
+        storageCheckbox:SetSelected("playerSpecific", Settings.get("playerSpecific"), false)
+        local ready = Settings.IsStorageReady()
+        storageStatus.content = ready and ""
+            or "Character settings unavailable. Grant trackingAccess and wait for login, or turn off player-specific settings."
+        if presetDropdown then presetDropdown:SetDisabled(not ready) end
+        if presetNameField then presetNameField:SetDisabled(not ready) end
+        for _, field in pairs(fields) do field:SetDisabled(not ready) end
+    end
+    refreshStorage()
     local function refreshFields()
         for setting, field in pairs(fields) do
             field:SetText(Settings.get(setting))
@@ -77,6 +106,7 @@ local function onLayerReady(event)
     end
     RightClickHider.Subscribe("settings-pane", refreshFields)
     Settings.Subscribe(EVENT_ID, function(name)
+        if name == "storageScope" or name == "playerSpecific" then refreshStorage() end
         if name == "activePreset" or name == "presetName" then
             presetDropdown:SetEntries(Settings.GetPresetEntries(), tonumber(Settings.get("activePreset")))
         end

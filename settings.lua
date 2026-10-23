@@ -12,12 +12,15 @@ end
 local PLUGIN_DB_PREFIX = "entity_hider_"
 
 local CachedSettings = {}
+local storagePrefix = PLUGIN_DB_PREFIX
+local EVENT_ID = "entity-hider-settings-storage"
 local presetFields = { "customRSNs", "customNPCs", "customFamiliars" }
 local presetSettings = { customRSNs = true, customNPCs = true, customFamiliars = true, presetName = true }
 Settings.PRESET_COUNT = 5
 
 -- Settings and their default values/types
 local ValidSettings = {
+    playerSpecific = { default = false, type = "boolean" },
     activePreset = { default = "1", type = "string" },
     presetName = { default = "Preset 1", type = "string" },
     enabled = {
@@ -73,18 +76,24 @@ local function assertValidSetting(settingName)
 end
 
 local function makeKey(settingName, preset)
+    if settingName == "playerSpecific" then return PLUGIN_DB_PREFIX .. settingName end
+    if storagePrefix == nil then return nil end
     if presetSettings[settingName] then
         preset = preset or Settings.get("activePreset")
         -- Keep the original lists as preset 1, preserving existing settings.
         if preset ~= "1" or settingName == "presetName" then
-            return PLUGIN_DB_PREFIX .. "preset" .. preset .. "_" .. settingName
+            return storagePrefix .. "preset" .. preset .. "_" .. settingName
         end
     end
-    return PLUGIN_DB_PREFIX .. settingName
+    return storagePrefix .. settingName
 end
 
 local function readSetting(settingName, preset)
     local key = makeKey(settingName, preset)
+    if key == nil then
+        return settingName == "presetName" and ("Preset " .. (preset or Settings.get("activePreset")))
+            or ValidSettings[settingName].default
+    end
     if CachedSettings[key] ~= nil then return CachedSettings[key] end
     local setting = ValidSettings[settingName]
     local value
@@ -110,6 +119,59 @@ local function notify(settingName, value)
     for _, callback in pairs(listeners) do callback(settingName, value) end
 end
 
+local function characterPrefix()
+    if not Plugin.HasPermission(PluginPermissions.trackingAccess) or not Player.IsAvailable() then return nil end
+    local trackingID = Player.GetTrackingID()
+    if trackingID == nil then return nil end
+    return PLUGIN_DB_PREFIX .. "player_" .. tostring(trackingID) .. "_"
+end
+
+function Settings.GetStorageScope()
+    return storagePrefix
+end
+
+function Settings.IsStorageReady()
+    return storagePrefix ~= nil
+end
+
+local function readStorage(prefix)
+    local previousPrefix = storagePrefix
+    storagePrefix = prefix
+    local values = {}
+    local ok, err = pcall(function()
+        for name in pairs(ValidSettings) do
+            if name ~= "playerSpecific" then values[name] = readSetting(name) end
+        end
+    end)
+    storagePrefix = previousPrefix
+    if not ok then error(err, 0) end
+    return values
+end
+
+local function switchStorage(prefix, values)
+    if storagePrefix == prefix then return end
+    -- Load the entire scope before committing it or refreshing filters and UI.
+    values = values or readStorage(prefix)
+    storagePrefix = prefix
+    for name, value in pairs(values) do notify(name, value) end
+    notify("storageScope", prefix)
+end
+
+function Settings.RefreshStorage()
+    local prefix = PLUGIN_DB_PREFIX
+    if Settings.get("playerSpecific") then prefix = characterPrefix() end
+    switchStorage(prefix)
+end
+
+function Settings.Start()
+    Settings.RefreshStorage()
+    Event.Logic.Subscribe(EVENT_ID, Settings.RefreshStorage)
+end
+
+function Settings.Shutdown()
+    Event.Logic.Unsubscribe(EVENT_ID)
+end
+
 function Settings.GetPresetEntries()
     local entries = {}
     for index = 1, Settings.PRESET_COUNT do
@@ -127,6 +189,24 @@ function Settings.update(settingName, value)
     if type(value) ~= setting.type then
         error("Setting " .. settingName .. " expects " .. setting.type .. ", got " .. type(value))
     end
+
+    if settingName == "playerSpecific" then
+        local prefix = PLUGIN_DB_PREFIX
+        if value then
+            assert(Plugin.HasPermission(PluginPermissions.trackingAccess), "Grant trackingAccess permission to enable player-specific settings")
+            prefix = characterPrefix()
+            assert(prefix ~= nil, "Player tracking ID unavailable; wait until login completes")
+        end
+        local values
+        if prefix ~= storagePrefix then values = readStorage(prefix) end
+        local key = makeKey(settingName)
+        PersistentDB:SetBool(key, value)
+        CachedSettings[key] = value
+        switchStorage(prefix, values)
+        notify(settingName, value)
+        return
+    end
+    assert(storagePrefix ~= nil, "Character settings unavailable; grant trackingAccess and wait until login completes")
 
     local switchedValues
     if settingName == "activePreset" then

@@ -18,7 +18,7 @@ local function event(name)
     }
 end
 Event = {}
-for _, name in ipairs({ "EntityDraw", "MiniMenuReady", "ContentLayerReady", "SettingsLayerReady" }) do
+for _, name in ipairs({ "Logic", "EntityDraw", "MiniMenuReady", "ContentLayerReady", "SettingsLayerReady" }) do
     Event[name] = event(name)
 end
 local function emit(name, payload)
@@ -29,6 +29,13 @@ EntityType = { PLAYER = 1, NPC = 2 }
 MiniMenuEntryType = { NPC = 4, PLAYER = 7, SELF = 8, LOC = 3, PLUGIN = 10 }
 id = { NPC = setmetatable({}, { __index = function(_, key) return key end }) }
 PlayerList = { Self = function() return { displayName = "Local Player" } end }
+local trackingAllowed, trackingID = false, "character-a"
+PluginPermissions = { trackingAccess = {} }
+Plugin = { HasPermission = function(permission)
+    assert(permission == PluginPermissions.trackingAccess, "permission enum value required")
+    return trackingAllowed
+end }
+Player = { IsAvailable = function() return true end, GetTrackingID = function() return trackingID end }
 local controlDown, shiftDown = false, false
 Keyboard = {
     IsControlDown = function() return controlDown end,
@@ -52,6 +59,7 @@ prettyui = { SimpleView = { new = function()
         function combo:SetEntries(entries, selectedID)
             self.entries, self.selectedID = entries, selectedID
         end
+        function combo:SetDisabled(disabled) self.disabled = disabled end
         function combo:Select(selectedID, triggerEvents)
             self.selectedID = selectedID
             if triggerEvents then options.onChange(self, selectedID) end
@@ -61,9 +69,17 @@ prettyui = { SimpleView = { new = function()
     end
     function view:AddDivider() end
     function view:AddCheckboxButton(items, options)
+        local group = {}
         for _, item in ipairs(items) do
             self.checkboxes[item.value] = { selected = item.selected, onChange = options.onChange }
         end
+        function group:SetSelected(value, selected)
+            view.checkboxes[value].selected = selected
+        end
+        function group:SetDisabled(disabled)
+            for _, item in ipairs(items) do view.checkboxes[item.value].disabled = disabled end
+        end
+        return group
     end
     function view:AddText(options)
         local text = { content = type(options) == "table" and options.text or options }
@@ -79,6 +95,7 @@ prettyui = { SimpleView = { new = function()
     function view:AddTextField(options)
         local field = { text = options.text, onChange = options.onChange }
         function field:SetText(text) self.text = text end
+        function field:SetDisabled(disabled) self.disabled = disabled end
         self.fields[#self.fields + 1] = field
         return field
     end
@@ -305,6 +322,48 @@ expect(Settings.get("customFamiliars"), "Yak", "preset 1 familiar list retained"
 expect(settingsPane.fields[3].text, "Other, New NPC", "switch restores visible NPC field")
 expect(shownNPC(guard), true, "switch refreshes NPC filter activity")
 expect(shownPlayer(otherPlayer), true, "switch refreshes player filter activity")
+
+-- Storage selection belongs to settings and rejects missing permission.
+local storageToggle = settingsPane.checkboxes.playerSpecific
+local storageControl = { SetSelected = function(_, _, selected) storageToggle.selected = selected end }
+local allowed, message = pcall(storageToggle.onChange, storageControl, nil, "playerSpecific", true)
+expect(allowed, false, "storage checkbox asserts permission")
+expect(tostring(message):find("trackingAccess", 1, true) ~= nil, true, "permission assertion is actionable")
+expect(Settings.get("playerSpecific"), false, "denied permission retains global storage")
+expect(storageToggle.selected, false, "denied permission restores checkbox")
+expect(content.checkboxes.playerSpecific, nil, "storage checkbox appears only in settings")
+trackingAllowed = true
+local globalMenu = menu({ entry(guard) })
+storageToggle.onChange(storageControl, nil, "playerSpecific", true)
+expect(storageToggle.selected, true, "storage checkbox enables character mode")
+expect(Settings.get("customNPCs"), "", "new character starts with defaults")
+expect(settingsPane.fields[3].text, "", "storage change refreshes custom fields")
+globalMenu.added[1].click()
+expect(Settings.get("customNPCs"), "", "stale global menu cannot modify character settings")
+Settings.update("allNPCs", true)
+Settings.update("customNPCs", "Character NPC")
+trackingID = "character-b"
+emit("Logic")
+expect(Settings.get("allNPCs"), false, "other character has independent toggles")
+expect(content.checkboxes.allNPCs.selected, false, "content toggles refresh on character switch")
+trackingID = "character-a"
+emit("Logic")
+expect(Settings.get("allNPCs"), true, "returning character restores toggle")
+expect(content.checkboxes.allNPCs.selected, true, "content shows restored character toggle")
+expect(settingsPane.fields[3].text, "Character NPC", "settings shows restored character list")
+trackingAllowed = false
+emit("Logic")
+expect(settingsPane.fields[3].disabled, true, "revoked permission disables list editing")
+expect(settingsPane.combo.disabled, true, "revoked permission disables preset selection")
+expect(content.checkboxes.allNPCs.disabled, true, "unavailable character disables content toggles")
+expect(#menu({ entry(guard) }).added, 0, "unavailable character omits right-click hide")
+trackingAllowed = true
+emit("Logic")
+expect(settingsPane.fields[3].disabled, false, "restored permission enables list editing")
+expect(content.checkboxes.allNPCs.disabled, false, "restored permission enables toggles")
+storageToggle.onChange(storageControl, nil, "playerSpecific", false)
+expect(Settings.get("customNPCs"), "Other, New NPC", "turning off restores global list")
+expect(content.checkboxes.allNPCs.selected, false, "turning off restores global toggles")
 
 local pending = menu({ entry(guard) })
 Settings.update("enabled", false)
