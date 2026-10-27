@@ -72,4 +72,60 @@ failWrites = false
 Settings.Unsubscribe("test")
 Settings.update("enabled", false)
 expect(notifications, 1, "unsubscribed listener not called")
+expect(Settings.get("activePreset"), "1", "existing lists start in preset 1")
+expect(#Settings.GetPresetEntries(), 5, "exactly five presets")
+Settings.update("customRSNs", "Original Player")
+Settings.update("customFamiliars", "Original Pet")
+Settings.update("presetName", "Bossing")
+for index = 2, 5 do
+    Settings.update("activePreset", tostring(index))
+    expect(Settings.get("customNPCs"), "", "new preset has empty NPC list")
+    expect(Settings.get("customRSNs"), "", "new preset has empty player list")
+    expect(Settings.get("customFamiliars"), "", "new preset has empty familiar list")
+    expect(Settings.get("presetName"), "Preset " .. index, "default preset name")
+    Settings.update("customNPCs", "NPC " .. index)
+    Settings.update("customRSNs", "Player " .. index)
+    Settings.update("customFamiliars", "Pet " .. index)
+    Settings.update("presetName", "Activity " .. index)
+end
+for index = 2, 5 do
+    Settings.update("activePreset", tostring(index))
+    expect(Settings.get("customNPCs"), "NPC " .. index, "independent NPC lists")
+    expect(Settings.get("customRSNs"), "Player " .. index, "independent player lists")
+    expect(Settings.get("customFamiliars"), "Pet " .. index, "independent familiar lists")
+    expect(Settings.GetPresetEntries()[index].label, "Activity " .. index, "saved names in dropdown")
+end
+local persisted = dofile("settings.lua")
+expect(persisted.get("activePreset"), "5", "active preset survives reload")
+expect(persisted.get("customNPCs"), "NPC 5", "active list survives reload")
+expect(persisted.get("presetName"), "Activity 5", "preset name survives reload")
+persisted.update("activePreset", "1")
+expect(persisted.get("customNPCs"), "Ghost", "legacy NPC list preserved")
+expect(persisted.get("customRSNs"), "Original Player", "legacy player list preserved")
+expect(persisted.get("customFamiliars"), "Original Pet", "legacy familiar list preserved")
+expect(persisted.get("presetName"), "Bossing", "first preset name preserved")
+expect(persisted.get("enabled"), false, "toggles remain global")
+local switchedNotifications = {}
+Settings.Subscribe("presets", function(name, value)
+    switchedNotifications[name] = value
+    expect(Settings.get("customNPCs"), "Ghost", "switch notifications see complete target preset")
+end)
+Settings.update("activePreset", "1")
+expect(switchedNotifications.customNPCs, "Ghost", "NPC filters notified on switch")
+expect(switchedNotifications.customRSNs, "Original Player", "player filters notified on switch")
+expect(switchedNotifications.customFamiliars, "Original Pet", "familiar filters notified on switch")
+expect(switchedNotifications.activePreset, "1", "selection notified on switch")
+Settings.Unsubscribe("presets")
+for _, invalid in ipairs({ "0", "6", "1.5", "invalid" }) do
+    rejects(function() Settings.update("activePreset", invalid) end, "between 1 and 5")
+end
+failWrites = true
+rejects(function() Settings.update("activePreset", "2") end, "simulated database failure")
+expect(Settings.get("activePreset"), "1", "failed switch retains selection")
+expect(Settings.get("customNPCs"), "Ghost", "failed switch retains active list")
+failWrites = false
+Settings.update("presetName", "   ")
+expect(Settings.get("presetName"), "Preset 1", "blank name falls back to slot name")
+saved.entity_hider_activePreset = "99"
+expect(dofile("settings.lua").get("activePreset"), "1", "invalid saved selection recovers")
 print("Settings: " .. checks .. " checks passed")
