@@ -120,7 +120,7 @@ local hasNPCFilters = false
 local hasPlayerFilters = false
 local NPCFilterSettings = {
     allNPCs = true, conjures = true, allFamiliars = true, drakePets = true,
-    customNPCs = true, customFamiliars = true,
+    customNPCs = true, customFamiliars = true, spiders = true,
 }
 local PlayerFilterSettings = {
     localPlayer = true, otherPlayers = true, customRSNs = true,
@@ -131,6 +131,7 @@ local function refreshNPCFilters()
         or Settings.get("conjures")
         or Settings.get("allFamiliars")
         or Settings.get("drakePets")
+        or Settings.get("spiders")
         or Settings.get("customNPCs") ~= ""
         or Settings.get("customFamiliars") ~= ""
 end

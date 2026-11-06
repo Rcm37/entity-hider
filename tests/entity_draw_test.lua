@@ -146,6 +146,23 @@ for _, configName in ipairs({
     expect(carpet, { customNPCs = "Magic carpet" }, true, configName .. " ignores NPC list")
     expect(carpet, { customFamiliars = "Magic carpet" }, false, configName .. " uses familiar list")
 end
+for _, configName in ipairs({ "APRIL_FOOLS_2021_PET_NPC", "APRIL_FOOLS_2021_PET_NPC_POH" }) do
+    local pet = npc("K'ril Psssutsaroth", false, id.NPC[configName])
+    expect(pet, {}, true, configName .. " visible by default")
+    expect(pet, { allNPCs = true }, true, configName .. " excluded from NPC toggle")
+    expect(pet, { allFamiliars = true }, false, configName .. " uses familiar toggle")
+    expect(pet, { customNPCs = "K'ril Psssutsaroth" }, true, configName .. " ignores NPC list")
+    expect(pet, { customFamiliars = "K'ril Psssutsaroth" }, false, configName .. " uses familiar list")
+end
+for _, configName in ipairs({
+    "GODWARS_ZAMORAK_AVATAR", "GODWARS_ZAMORAK_AVATAR_HARD",
+    "APRIL_FOOLS_2021_BALLOON_BOSS", "APRIL_FOOLS_2021_BALLOON_BOSS_MULTI",
+    "APRIL_FOOLS_2021_BALLOON_BOSS_DEFLATED",
+}) do
+    local boss = npc("K'ril Tsutsaroth", false, id.NPC[configName])
+    expect(boss, { allNPCs = true }, false, configName .. " remains an NPC")
+    expect(boss, { allFamiliars = true }, true, configName .. " is not a pet")
+end
 local carpetSeller = npc("Carpet merchant", false, id.NPC.MAGIC_CARPET_SELLER1)
 expect(carpetSeller, { allNPCs = true }, false, "carpet seller remains an ordinary NPC")
 expect(carpetSeller, { allFamiliars = true }, true, "carpet seller is not a familiar")

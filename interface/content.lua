@@ -4,6 +4,7 @@ local RightClickHider = require("right_click_hider")
 local ContentPane = {}
 local EVENT_ID = "entity-hider-content-pane"
 local lastHiddenText, undoButton
+local toggleGroups = {}
 
 local function refreshLastHidden()
     if not view then return end
@@ -14,9 +15,11 @@ local function refreshLastHidden()
 end
 
 local function closeView()
+    Settings.Unsubscribe(EVENT_ID)
     RightClickHider.Unsubscribe("content-pane")
     if view then view:Destroy() end
     view, lastHiddenText, undoButton = nil, nil, nil
+    toggleGroups = {}
 end
 
 local function onLayerReady(event)
@@ -28,8 +31,8 @@ local function onLayerReady(event)
         height = parent.height,
     })
 
-    view:AddTitle("Global Toggle")
-    view:AddCheckboxButton({
+    view:AddTitle("Plugin Toggle")
+    toggleGroups[1] = view:AddCheckboxButton({
         { text = "Enable Plugin", value = "enabled", selected = Settings.get("enabled") },
     }, {
         onChange = function(_, _, changedValue, selected)
@@ -38,7 +41,7 @@ local function onLayerReady(event)
     })
 
     view:AddTitle("Toggle Options")
-    view:AddCheckboxButton({
+    toggleGroups[2] = view:AddCheckboxButton({
         { text = "Hide Yourself",    value = "localPlayer",  selected = Settings.get("localPlayer") },
         { text = "Hide Other Players",   value = "otherPlayers", selected = Settings.get("otherPlayers") },
         { text = "Hide NPCs",            value = "allNPCs",      selected = Settings.get("allNPCs") },
@@ -53,7 +56,7 @@ local function onLayerReady(event)
     })
     view:AddDivider()
     view:AddTitle("Right-click Hiding")
-    view:AddCheckboxButton({
+    toggleGroups[3] = view:AddCheckboxButton({
         { text = "Require Ctrl + Shift for Hide options", value = "rightClickRequireCtrlShift",
             selected = Settings.get("rightClickRequireCtrlShift") },
     }, {
@@ -70,6 +73,24 @@ local function onLayerReady(event)
     refreshLastHidden()
     view:AddDivider()
     view:AddText("Manage Entity Hider settings via Plugin Hub to set custom configurations!")
+    local function refreshStorageAvailability()
+        for _, group in ipairs(toggleGroups) do group:SetDisabled(not Settings.IsStorageReady()) end
+    end
+    refreshStorageAvailability()
+    Settings.Subscribe(EVENT_ID, function(name)
+        if name == "storageScope" then
+            refreshStorageAvailability()
+            for index, names in ipairs({
+                { "enabled" },
+                { "localPlayer", "otherPlayers", "allNPCs", "conjures", "allFamiliars", "drakePets" },
+                { "rightClickRequireCtrlShift" },
+            }) do
+                for _, setting in ipairs(names) do
+                    toggleGroups[index]:SetSelected(setting, Settings.get(setting), false)
+                end
+            end
+        end
+    end)
 end
 
 function ContentPane.Start()

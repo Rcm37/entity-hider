@@ -1,7 +1,9 @@
 local Familiars = {}
 
--- These cosmetic pets are not marked as familiars by the game.
+-- These pets are not marked as familiars by the game.
 local overrides = {
+    [id.NPC.APRIL_FOOLS_2021_PET_NPC] = true,
+    [id.NPC.APRIL_FOOLS_2021_PET_NPC_POH] = true,
     [id.NPC.MENAPHOS_MAGIC_CARPET_IMPERIAL] = true,
     [id.NPC.MENAPHOS_MAGIC_CARPET_IMPERIAL_POH] = true,
     [id.NPC.MENAPHOS_MAGIC_CARPET_MERCHANT] = true,
