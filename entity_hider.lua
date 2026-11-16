@@ -1,6 +1,7 @@
 local Settings = require("settings")
 local Names = require("names")
 local Familiars = require("familiars")
+local NPCIDs = require("npc_ids")
 local EntityHider = {}
 local EVENT_ID = "entity-hider-entity-draw"
 local DrakeLookupTable = {
@@ -99,8 +100,10 @@ local NPCHideRules = {
 }
 
 local function ShouldDrawNPC(npc)
-    if npc == nil or npc.config == nil
-        or npc.config.id == nil or npc.config.isFamiliar == nil then
+    if npc == nil or npc.config == nil then return true end
+    -- ID filters also cover nameless NPCs and familiars by their entity config.
+    if NPCIDs.Contains(Settings.get("customNPCIDs"), npc.config.id) then return false end
+    if npc.config.id == nil or npc.config.isFamiliar == nil then
         return true
     end
 
@@ -120,7 +123,7 @@ local hasNPCFilters = false
 local hasPlayerFilters = false
 local NPCFilterSettings = {
     allNPCs = true, conjures = true, allFamiliars = true, drakePets = true,
-    customNPCs = true, customFamiliars = true, spiders = true,
+    customNPCs = true, customFamiliars = true, spiders = true, customNPCIDs = true,
 }
 local PlayerFilterSettings = {
     localPlayer = true, otherPlayers = true, customRSNs = true,
@@ -134,6 +137,7 @@ local function refreshNPCFilters()
         or Settings.get("spiders")
         or Settings.get("customNPCs") ~= ""
         or Settings.get("customFamiliars") ~= ""
+        or Settings.get("customNPCIDs") ~= ""
 end
 
 local function refreshPlayerFilters()

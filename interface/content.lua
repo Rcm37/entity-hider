@@ -3,7 +3,7 @@ local Settings = require("settings")
 local RightClickHider = require("right_click_hider")
 local ContentPane = {}
 local EVENT_ID = "entity-hider-content-pane"
-local lastHiddenText, undoButton
+local lastHiddenText, undoButton, keybindField
 local toggleGroups = {}
 
 local function refreshLastHidden()
@@ -18,7 +18,7 @@ local function closeView()
     Settings.Unsubscribe(EVENT_ID)
     RightClickHider.Unsubscribe("content-pane")
     if view then view:Destroy() end
-    view, lastHiddenText, undoButton = nil, nil, nil
+    view, lastHiddenText, undoButton, keybindField = nil, nil, nil, nil
     toggleGroups = {}
 end
 
@@ -57,14 +57,19 @@ local function onLayerReady(event)
     view:AddDivider()
     view:AddTitle("Right-click Hiding")
     toggleGroups[3] = view:AddCheckboxButton({
-        { text = "Require Ctrl + Shift for Hide options", value = "rightClickRequireCtrlShift",
+        { text = "Require keybind for Hide options", value = "rightClickRequireCtrlShift",
             selected = Settings.get("rightClickRequireCtrlShift") },
     }, {
         onChange = function(_, _, changedValue, selected)
             Settings.update(changedValue, selected)
         end,
     })
-    view:AddText("Right-click a player or NPC and choose Hide to save its name to your custom hide lists.")
+    keybindField = view:AddKeybindField({
+        value = Settings.GetRightClickKeybind(),
+        defaultValue = { GameKey.CONTROL, GameKey.SHIFT },
+        onChange = function(_, keys) Settings.SetRightClickKeybind(keys) end,
+    })
+    view:AddText("Click to bind up to two keys.")
     lastHiddenText = view:AddText({ text = "", height = 60, maxLines = 3 })
     undoButton = view:AddSimpleButton("Undo Last Hide", function()
         RightClickHider.Undo()
@@ -72,17 +77,21 @@ local function onLayerReady(event)
     RightClickHider.Subscribe("content-pane", refreshLastHidden)
     refreshLastHidden()
     view:AddDivider()
-    view:AddText("Manage Entity Hider settings via Plugin Hub to set custom configurations!")
+    view:AddText("Configure custom hide lists and presets in Plugin Hub settings.")
     local function refreshStorageAvailability()
         for _, group in ipairs(toggleGroups) do group:SetDisabled(not Settings.IsStorageReady()) end
+        keybindField:SetDisabled(not Settings.IsStorageReady())
     end
     refreshStorageAvailability()
     Settings.Subscribe(EVENT_ID, function(name)
-        if name == "storageScope" then
+        if name == "rightClickKeybind" or name == "storageScope" then
+            keybindField:SetValue(Settings.GetRightClickKeybind(), false)
+        end
+        if name == "storageScope" or name == "activePreset" then
             refreshStorageAvailability()
             for index, names in ipairs({
                 { "enabled" },
-                { "localPlayer", "otherPlayers", "allNPCs", "conjures", "allFamiliars", "drakePets" },
+                { "localPlayer", "otherPlayers", "allNPCs", "conjures", "allFamiliars", "drakePets", "spiders" },
                 { "rightClickRequireCtrlShift" },
             }) do
                 for _, setting in ipairs(names) do

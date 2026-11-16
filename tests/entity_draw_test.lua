@@ -27,7 +27,7 @@ local function reset(overrides)
     settings = {
         enabled = true, conjures = false, allNPCs = false, spiders = false,
         allFamiliars = false, drakePets = false, localPlayer = false,
-        otherPlayers = false, customRSNs = "", customNPCs = "", customFamiliars = "",
+        otherPlayers = false, customRSNs = "", customNPCs = "", customFamiliars = "", customNPCIDs = "",
     }
     for key, value in pairs(overrides or {}) do settings[key] = value end
     if onSettingChanged then
@@ -91,6 +91,7 @@ for _, case in ipairs({
     { "drakePets", true, drake },
     { "customNPCs", "Guard", ordinary },
     { "customFamiliars", "Yak", familiar },
+    { "customNPCIDs", "1234", npc("", false, 1234) },
     { "localPlayer", true, player("Local Player") },
     { "otherPlayers", true, player("Other Player") },
     { "customRSNs", "Other Player", player("Other Player") },
@@ -117,6 +118,13 @@ assert(currentDraw(player("Other Player")) == false, "startup reads saved player
 checks = checks + 2
 
 expect(ordinary, {}, true, "default drawing")
+expect(npc("", false, 1234), { customNPCIDs = "1234" }, false, "ID hides nameless NPC")
+expect(npc("Renamed familiar", true, 1234), { customNPCIDs = "1234" }, false, "ID hides familiar override regardless of name")
+expect(npc(nil, nil, 1234), { customNPCIDs = "1234" }, false, "ID hide works without name or familiar classification")
+expect(npc("Fishing spot", false, 1234), { customNPCIDs = "1234" }, false, "ID filter bypasses general fishing exclusion")
+expect(npc("", false, 12345), { customNPCIDs = "1234" }, true, "ID matches exactly rather than substring")
+expect(npc("", false, 1234), { customNPCIDs = "nope, -1, 12.34" }, true, "invalid ID entries never hide NPCs")
+expect(npc("", false, 1234), { customNPCIDs = "1234", enabled = false }, true, "disabled plugin does not hide by ID")
 expect(npc("", false, id.NPC.EGWD_JAS_BOSS_LIGHTNING_STRIKE), {}, true, "unnamed Kerapac effect remains visible by default")
 expect(npc("", false, id.NPC.EGWD_JAS_BOSS_LIGHTNING_STRIKE),
     { customNPCs = "Guard, ," }, true, "empty custom entries do not hide unnamed Kerapac effects")

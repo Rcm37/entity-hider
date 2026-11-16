@@ -13,6 +13,10 @@ PersistentDB = {
     SetString = write,
 }
 local Settings = require("settings")
+GameKey = { CONTROL = 82, SHIFT = 81, ALT = 86, K = 55 }
+function GameKey.FromID(key)
+    for name, value in pairs(GameKey) do if value == key then return name end end
+end
 local checks = 0
 local function expect(actual, expected, label)
     assert(actual == expected, label .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
@@ -126,6 +130,85 @@ expect(Settings.get("customNPCs"), "Ghost", "failed switch retains active list")
 failWrites = false
 Settings.update("presetName", "   ")
 expect(Settings.get("presetName"), "Preset 1", "blank name falls back to slot name")
+expect(Settings.get("presetIncludeToggles"), false, "preset toggles default off")
+local hideToggles = { "localPlayer", "otherPlayers", "allNPCs", "conjures", "allFamiliars", "drakePets", "spiders" }
+for _, name in ipairs(hideToggles) do Settings.update(name, true) end
+Settings.update("presetIncludeToggles", true)
+for _, name in ipairs(hideToggles) do
+    expect(Settings.get(name), true, "enabling preserves " .. name)
+end
+Settings.update("activePreset", "2")
+for _, name in ipairs(hideToggles) do
+    expect(Settings.get(name), true, "new preset inherits shared " .. name)
+    Settings.update(name, false)
+end
+Settings.update("enabled", true)
+Settings.update("rightClickRequireCtrlShift", true)
+local seen = {}
+Settings.Subscribe("toggle-presets", function(name, value)
+    seen[name] = value
+    for _, toggle in ipairs(hideToggles) do
+        expect(Settings.get(toggle), true, "listeners see complete target toggles")
+    end
+end)
+Settings.update("activePreset", "1")
+Settings.Unsubscribe("toggle-presets")
+for _, name in ipairs(hideToggles) do expect(seen[name], true, "switch notifies " .. name) end
+expect(seen.enabled, nil, "preset does not notify plugin enable")
+expect(seen.rightClickRequireCtrlShift, nil, "preset does not notify modifier preference")
+expect(Settings.get("enabled"), true, "plugin enable stays shared")
+expect(Settings.get("rightClickRequireCtrlShift"), true, "modifier preference stays shared")
+local toggleReload = dofile("settings.lua")
+expect(toggleReload.get("presetIncludeToggles"), true, "option survives reload")
+toggleReload.update("activePreset", "2")
+for _, name in ipairs(hideToggles) do expect(toggleReload.get(name), false, "saved toggle survives reload") end
+Settings.update("activePreset", "2")
+Settings.update("presetIncludeToggles", false)
+for _, name in ipairs(hideToggles) do expect(Settings.get(name), false, "disabling preserves current toggles") end
+Settings.update("activePreset", "1")
+for _, name in ipairs(hideToggles) do expect(Settings.get(name), false, "disabled option shares toggles") end
+Settings.update("activePreset", "2")
+Settings.update("presetIncludeToggles", true)
+Settings.update("activePreset", "1")
+for _, name in ipairs(hideToggles) do expect(Settings.get(name), true, "other preset toggle set retained") end
+failWrites = true
+rejects(function() Settings.update("presetIncludeToggles", false) end, "simulated database failure")
+expect(Settings.get("presetIncludeToggles"), true, "failed mode change retains option")
+rejects(function() Settings.update("activePreset", "2") end, "simulated database failure")
+expect(Settings.get("activePreset"), "1", "failed switch retains selected toggle set")
+expect(Settings.get("spiders"), true, "failed switch retains toggle value")
+failWrites = false
+expect(Settings.GetRightClickKeybind()[1], GameKey.CONTROL, "existing preference defaults to Ctrl")
+expect(Settings.GetRightClickKeybind()[2], GameKey.SHIFT, "existing preference defaults to Shift")
+Settings.SetRightClickKeybind({ GameKey.CONTROL, GameKey.ALT })
+expect(Settings.get("rightClickKeybind"), "CONTROL,ALT", "binding saved by enum name")
+expect(dofile("settings.lua").GetRightClickKeybind()[2], GameKey.ALT, "custom chord survives reload")
+Settings.update("activePreset", "2")
+expect(Settings.GetRightClickKeybind()[2], GameKey.ALT, "binding remains shared across presets")
+Settings.update("activePreset", "1")
+Settings.SetRightClickKeybind({ GameKey.K })
+expect(#Settings.GetRightClickKeybind(), 1, "single-key binding supported")
+Settings.SetRightClickKeybind({})
+expect(#Settings.GetRightClickKeybind(), 0, "unbound value supported")
+for _, invalid in ipairs({ "UNKNOWN", "CONTROL,CONTROL", "CONTROL,ALT,SHIFT", "CONTROL,", ",SHIFT" }) do
+    Settings.update("rightClickKeybind", invalid)
+    expect(Settings.GetRightClickKeybind()[2], GameKey.SHIFT, "invalid stored binding falls back to default")
+end
+rejects(function() Settings.SetRightClickKeybind({ GameKey.CONTROL, GameKey.CONTROL }) end, "repeat")
+rejects(function() Settings.SetRightClickKeybind({ GameKey.CONTROL, GameKey.SHIFT, GameKey.ALT }) end, "two keys")
+rejects(function() Settings.SetRightClickKeybind({ -1 }) end, "GameKey")
+Settings.SetRightClickKeybind({ GameKey.SHIFT, GameKey.ALT })
+failWrites = true
+rejects(function() Settings.SetRightClickKeybind({ GameKey.K }) end, "simulated database failure")
+expect(Settings.GetRightClickKeybind()[2], GameKey.ALT, "failed write preserves prior binding")
+failWrites = false
+Settings.update("customNPCIDs", "1234")
+Settings.update("activePreset", "2")
+expect(Settings.get("customNPCIDs"), "", "new preset has no hidden IDs")
+Settings.update("customNPCIDs", "5678")
+expect(dofile("settings.lua").get("customNPCIDs"), "5678", "hidden IDs survive reload")
+Settings.update("activePreset", "1")
+expect(Settings.get("customNPCIDs"), "1234", "hidden IDs are independent between presets")
 saved.entity_hider_activePreset = "99"
 expect(dofile("settings.lua").get("activePreset"), "1", "invalid saved selection recovers")
 print("Settings: " .. checks .. " checks passed")

@@ -1,45 +1,51 @@
 # Entity Hider
 
-A RuneScape plugin for reducing visual clutter by hiding selected players, NPCs, familiars, pets, and Necromancy conjures.
+Hide selected players, NPCs, familiars, pets, and Necromancy conjures to reduce visual clutter.
 
-## Setup
-
-Requires **PrettyUI** (dependency ID `6398181`). Load the `entity-hider` directory as a development plugin with PrettyUI available. The optional **trackingAccess** permission is needed only for player-specific settings.
-
-Open its content pane for hide toggles and right-click options. Open its settings through **Plugin Hub** to edit saved name lists. Settings persist between sessions.
-
-## Settings storage
-
-Settings are global by default and will apply to all characters and clients. To save settings separately for each character, grant Entity Hider the optional **trackingAccess** permission in Plugin Hub, then enable **Use player-specific settings** in the settings layer while logged in. Enabling the checkbox asserts that permission is granted and that the tracking ID is available.
-
-Character settings use `entity_hider_player_<trackingID>_`, with the ID from `Player.GetTrackingID()`. Each character has independent hide toggles, modifier preference, preset names, preset selection, and custom lists. New characters start with defaults. The storage-mode checkbox itself is saved globally. Turning it off restores your global settings.
-
-While a character's tracking ID is unavailable after login or tracking access is revoked, character settings cannot be edited. They resume automatically when the ID and permission are available. Switching storage or characters clears right-click undo history.
+Requires PrettyUI. Use the ribbon panel for hide toggles and right-click options. Open Plugin Hub settings to manage custom lists and presets.
 
 ## Hide options
 
-The plugin is enabled by default, with all hide filters initially off.
+The plugin starts enabled with all hide filters off.
 
 | Option | Effect |
 | --- | --- |
 | Hide Yourself | Hides your own player model. |
-| Hide Other Players | Hides other player models; your own model uses its separate toggle. |
-| Hide NPCs | Hides NPCs except fishing spots, familiars/pets, and the conjures handled by the separate filter. |
+| Hide Other Players | Hides other player models. |
+| Hide NPCs | Hides NPCs except fishing spots, familiars, pets, and supported Necromancy conjures. |
 | Hide Conjures | Hides supported Necromancy conjures. |
-| Hide All Familiars / Pets | Hides NPCs marked as familiars by the game, magic carpet pets, and K'ril Psssutsaroth pets. |
-| Hide Drake Familiars | Hides the drake pets covered by the plugin's ID list. |
-| Hide Spiders | Hides NPCs and familiars/pets whose names contain "spider", ignoring case. |
+| Hide All Familiars / Pets | Hides familiars and pets, including magic carpet and K'ril Psssutsaroth pets. |
+| Hide Drake Familiars | Hides supported drake pets. |
+| Hide Spiders | Hides NPCs and familiars with "spider" in their names. |
 
-Filters combine: any matching filter hides an NPC. Custom name lists can also hide fishing spots and conjures excluded by the general NPC toggle.
+Any matching filter hides an entity. A custom list can hide something excluded by a general toggle.
 
-Magic carpet and K'ril Psssutsaroth pets (including their player-owned house variants) use the familiar/pet toggle and name list, and are excluded from Hide NPCs.
+## Custom lists and presets
 
-## Custom names and right-click hiding
+Plugin Hub settings provide separate lists for player names, NPC names, and familiar names. Separate names with commas. Names match in full and ignore capitalization. Use **Hide Yourself** to hide your own character.
 
-Plugin Hub settings provide separate comma-separated lists for **player names**, **NPC names**, and **familiar names**. Matching uses complete names, ignores case, and trims surrounding spaces. An NPC name entry applies to every matching NPC, rather than just one spawn. Your own player model is controlled by **Hide Yourself**.
+Choose from five presets and rename them with **Preset name**. Each preset saves its own name lists and hidden NPC IDs. Changes save automatically.
 
-Five presets each save their own three custom name lists. Select a preset from the **Custom input preset** dropdown in Plugin Hub settings. Edit **Preset name** in settings to rename the selected preset. Names, list edits, and the selected preset save automatically between sessions. Existing custom lists remain in **Preset 1**; the other four start empty. Hide toggles and the Ctrl + Shift preference apply across all presets.
+Enable **Include global toggles in presets** to save hide toggles with each preset too. This is off by default. **Enable Plugin** and right-click keybind preferences always apply across presets.
 
-Right-click a player or NPC and choose **Hide <name> (Entity Hider)** to add its name to the appropriate list. Enable **Require Ctrl + Shift for Hide options** to show these menu entries only while both keys are held.
+## Right-click hiding
 
-The content pane shows the most recently hidden name. **Undo Last Hide** removes that latest right-click addition; this undo history lasts for the current plugin session and clears when switching presets. Right-click additions affect the selected preset. Other matching filters may still keep the entity hidden. Remove older entries directly from the saved name lists.
+Right-click a player or NPC and choose **Hide <name> (Entity Hider)** to add its name to the selected preset.
+
+Enable **Require keybind for Hide options** to show Hide entries only while the chosen keys are held. Click the keybind field, hold one or two keys, then release. Modifier combinations such as **Ctrl + Shift** and **Ctrl + Alt** are supported. The default is **Ctrl + Shift**. Right-click the field to reset it.
+
+**Undo Last Hide** removes the latest right-click addition. Other filters may still keep that entity hidden. Undo history clears when switching presets, characters, or settings storage, and when the plugin reloads.
+
+## Advanced ID hiding
+
+Expand **Advanced Settings** to enter comma-separated NPC config IDs. This can hide nameless NPCs and familiars. The list below shows names alongside saved IDs where available. Remove an ID from the field to unhide it.
+
+Cosmetic familiar overrides cannot be targeted separately by their appearance IDs at this time.
+
+## Settings storage
+
+Settings apply to all characters by default and persist between sessions.
+
+For separate character settings, grant **trackingAccess** permission in Plugin Hub, log in, and enable **Use player-specific settings**. Turning it off restores shared settings.
+
+Character settings are unavailable while logged out or without permission. They become available again after login and permission are restored.

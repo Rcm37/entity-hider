@@ -1,6 +1,7 @@
 local view
 local Settings = require("settings")
 local RightClickHider = require("right_click_hider")
+local NPCIDs = require("npc_ids")
 local SettingsPane = {}
 local EVENT_ID = "entity-hider-settings-pane"
 local fields = {}
@@ -22,7 +23,7 @@ local function onLayerReady(event)
         height = parent.height,
     })
     view:AddTitle("Custom Inputs")
-    view:AddText("Custom input preset")
+    view:AddText("Preset")
     local presetDropdown = view:AddComboBox({
         entries = Settings.GetPresetEntries(),
         selectedID = tonumber(Settings.get("activePreset")),
@@ -31,6 +32,12 @@ local function onLayerReady(event)
             Settings.update("activePreset", tostring(presetID))
         end,
     })
+    local presetToggleCheckbox = view:AddCheckboxButton({
+        { text = "Include global toggles in presets", value = "presetIncludeToggles",
+            selected = Settings.get("presetIncludeToggles") },
+    }, {
+        onChange = function(_, _, name, selected) Settings.update(name, selected) end,
+    })
     view:AddText("Preset name")
     local presetNameField = view:AddTextField({
         text = Settings.get("presetName"),
@@ -38,10 +45,7 @@ local function onLayerReady(event)
         onChange = function(_, _, text) Settings.update("presetName", text) end,
     })
     view:AddText({
-        text = "Supports text selection, copy, and paste"
-    })
-    view:AddText({
-        text = "Input RSNs separated by commas"
+        text = "Player names (comma-separated)"
     })
     fields.customRSNs = view:AddTextField({
         placeholder = "player1,player2,player3,durial321",
@@ -51,7 +55,7 @@ local function onLayerReady(event)
         end,
     })
     view:AddText({
-        text = "Input NPC names separated by commas"
+        text = "NPC names (comma-separated)"
     })
     fields.customNPCs = view:AddTextField({
         placeholder = "Coeden,Strange Old Man,Clan Representative",
@@ -61,7 +65,7 @@ local function onLayerReady(event)
         end,
     })
     view:AddText({
-        text = "Input familiar names separated by commas"
+        text = "Familiar names (comma-separated)"
     })
     fields.customFamiliars = view:AddTextField({
         placeholder = "Kal'gerion demon,Devout Yak",
@@ -69,6 +73,17 @@ local function onLayerReady(event)
         onChange = function(_,_,text)
             Settings.update("customFamiliars", text)
         end,
+    })
+    local advanced = view:AddCollapseButton("Advanced Settings", { expanded = false })
+    advanced:AddText("NPC config IDs (comma-separated)")
+    fields.customNPCIDs = advanced:AddTextField({
+        text = Settings.get("customNPCIDs"),
+        placeholder = "1234, 5678",
+        onChange = function(_, _, text) Settings.update("customNPCIDs", text) end,
+    })
+    local idList = advanced:AddList({
+        entries = NPCIDs.GetEntries(Settings.get("customNPCIDs")),
+        height = 150,
     })
     view:AddDivider()
     view:AddTitle("Settings Storage")
@@ -87,15 +102,18 @@ local function onLayerReady(event)
             control:SetSelected("playerSpecific", Settings.get("playerSpecific"), false)
         end,
     })
-    view:AddText("Save settings separately for each character. Requires the optional trackingAccess permission in Plugin Hub. Turn off to use global settings.")
+    view:AddText("Requires trackingAccess permission in Plugin Hub.")
     local storageStatus = view:AddText({ text = "" })
     local function refreshStorage()
         storageCheckbox:SetSelected("playerSpecific", Settings.get("playerSpecific"), false)
         local ready = Settings.IsStorageReady()
         storageStatus.content = ready and ""
-            or "Character settings unavailable. Grant trackingAccess and wait for login, or turn off player-specific settings."
+            or "Character unavailable. Check trackingAccess permission and login."
         if presetDropdown then presetDropdown:SetDisabled(not ready) end
+        presetToggleCheckbox:SetDisabled(not ready)
+        presetToggleCheckbox:SetSelected("presetIncludeToggles", Settings.get("presetIncludeToggles"), false)
         if presetNameField then presetNameField:SetDisabled(not ready) end
+        idList:SetDisabled(not ready)
         for _, field in pairs(fields) do field:SetDisabled(not ready) end
     end
     refreshStorage()
@@ -106,7 +124,10 @@ local function onLayerReady(event)
     end
     RightClickHider.Subscribe("settings-pane", refreshFields)
     Settings.Subscribe(EVENT_ID, function(name)
-        if name == "storageScope" or name == "playerSpecific" then refreshStorage() end
+        if name == "storageScope" or name == "playerSpecific" or name == "presetIncludeToggles" then refreshStorage() end
+        if name == "customNPCIDs" or name == "storageScope" then
+            idList:SetEntries(NPCIDs.GetEntries(Settings.get("customNPCIDs")))
+        end
         if name == "activePreset" or name == "presetName" then
             presetDropdown:SetEntries(Settings.GetPresetEntries(), tonumber(Settings.get("activePreset")))
         end

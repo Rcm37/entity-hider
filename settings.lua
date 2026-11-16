@@ -14,13 +14,18 @@ local PLUGIN_DB_PREFIX = "entity_hider_"
 local CachedSettings = {}
 local storagePrefix = PLUGIN_DB_PREFIX
 local EVENT_ID = "entity-hider-settings-storage"
-local presetFields = { "customRSNs", "customNPCs", "customFamiliars" }
-local presetSettings = { customRSNs = true, customNPCs = true, customFamiliars = true, presetName = true }
+local presetFields = { "customRSNs", "customNPCs", "customFamiliars", "customNPCIDs" }
+local presetSettings = { customRSNs = true, customNPCs = true, customFamiliars = true, customNPCIDs = true, presetName = true }
+local toggleFields = { "localPlayer", "otherPlayers", "allNPCs", "conjures",
+    "allFamiliars", "drakePets", "spiders" }
+local toggleSettings = {}
+for _, name in ipairs(toggleFields) do toggleSettings[name] = true end
 Settings.PRESET_COUNT = 5
 
 -- Settings and their default values/types
 local ValidSettings = {
     playerSpecific = { default = false, type = "boolean" },
+    presetIncludeToggles = { default = false, type = "boolean" },
     activePreset = { default = "1", type = "string" },
     presetName = { default = "Preset 1", type = "string" },
     enabled = {
@@ -55,10 +60,13 @@ local ValidSettings = {
         default = false,
         type = "boolean"
     },
+    -- Retain the existing storage key for the optional shortcut requirement.
     rightClickRequireCtrlShift = {
         default = false,
         type = "boolean"
     },
+    rightClickKeybind = { default = "CONTROL,SHIFT", type = "string" },
+    customNPCIDs = { default = "", type = "string" },
     customRSNs = {
         default = "",
         type = "string"
@@ -79,9 +87,12 @@ local function assertValidSetting(settingName)
     end
 end
 
-local function makeKey(settingName, preset)
+local function makeKey(settingName, preset, shared)
     if settingName == "playerSpecific" then return PLUGIN_DB_PREFIX .. settingName end
     if storagePrefix == nil then return nil end
+    if toggleSettings[settingName] and not shared and Settings.get("presetIncludeToggles") then
+        return storagePrefix .. "preset" .. (preset or Settings.get("activePreset")) .. "_" .. settingName
+    end
     if presetSettings[settingName] then
         preset = preset or Settings.get("activePreset")
         -- Keep the original lists as preset 1, preserving existing settings.
@@ -92,8 +103,8 @@ local function makeKey(settingName, preset)
     return storagePrefix .. settingName
 end
 
-local function readSetting(settingName, preset)
-    local key = makeKey(settingName, preset)
+local function readSetting(settingName, preset, shared)
+    local key = makeKey(settingName, preset, shared)
     if key == nil then
         return settingName == "presetName" and ("Preset " .. (preset or Settings.get("activePreset")))
             or ValidSettings[settingName].default
@@ -110,8 +121,13 @@ local function readSetting(settingName, preset)
         value = nil
     end
     if value == nil then
-        value = settingName == "presetName" and ("Preset " .. (preset or Settings.get("activePreset")))
-            or setting.default
+        if toggleSettings[settingName] and not shared and Settings.get("presetIncludeToggles") then
+            -- New preset toggle sets inherit the existing shared values.
+            value = readSetting(settingName, nil, true)
+        else
+            value = settingName == "presetName" and ("Preset " .. (preset or Settings.get("activePreset")))
+                or setting.default
+        end
         if setting.type == "boolean" then PersistentDB:SetBool(key, value)
         else PersistentDB:SetString(key, value) end
     end
@@ -213,13 +229,28 @@ function Settings.update(settingName, value)
     assert(storagePrefix ~= nil, "Character settings unavailable; grant trackingAccess and wait until login completes")
 
     local switchedValues
-    if settingName == "activePreset" then
+    if settingName == "presetIncludeToggles" then
+        if value == Settings.get(settingName) then return end
+        -- Keep the current values when enabling or disabling preset toggles.
+        -- Other presets retain their saved toggle sets while this option is off.
+        for _, name in ipairs(toggleFields) do
+            local current = Settings.get(name)
+            local targetKey = value
+                and (storagePrefix .. "preset" .. Settings.get("activePreset") .. "_" .. name)
+                or makeKey(name, nil, true)
+            PersistentDB:SetBool(targetKey, current)
+            CachedSettings[targetKey] = current
+        end
+    elseif settingName == "activePreset" then
         if not value:match("^[1-5]$") then error("Preset must be between 1 and 5") end
         if value == Settings.get("activePreset") then return end
-        -- Load all lists before committing the switch or notifying listeners.
+        -- Load the complete preset before committing the switch or notifying listeners.
         switchedValues = {}
         for _, name in ipairs(presetFields) do switchedValues[name] = readSetting(name, value) end
         switchedValues.presetName = readSetting("presetName", value)
+        if Settings.get("presetIncludeToggles") then
+            for _, name in ipairs(toggleFields) do switchedValues[name] = readSetting(name, value) end
+        end
     elseif settingName == "presetName" and value:match("^%s*$") then
         value = "Preset " .. Settings.get("activePreset")
     end
@@ -237,6 +268,9 @@ function Settings.update(settingName, value)
     if switchedValues then
         for _, name in ipairs(presetFields) do notify(name, switchedValues[name]) end
         notify("presetName", switchedValues.presetName)
+        for _, name in ipairs(toggleFields) do
+            if switchedValues[name] ~= nil then notify(name, switchedValues[name]) end
+        end
     end
     notify(settingName, value)
 end
@@ -245,6 +279,35 @@ function Settings.get(settingName)
     assertValidSetting(settingName)
 
     return readSetting(settingName)
+end
+
+function Settings.GetRightClickKeybind()
+    local value = Settings.get("rightClickKeybind")
+    local keys, seen = {}, {}
+    if value == "" then return keys end
+    -- Store enum names so saved bindings do not depend on numeric key IDs.
+    for name in (value .. ","):gmatch("(.-),") do
+        local key = GameKey[name]
+        if type(key) ~= "number" or seen[key] or #keys == 2 then
+            return { GameKey.CONTROL, GameKey.SHIFT }
+        end
+        keys[#keys + 1] = key
+        seen[key] = true
+    end
+    return keys
+end
+
+function Settings.SetRightClickKeybind(keys)
+    assert(type(keys) == "table" and #keys <= 2, "A keybind supports up to two keys")
+    local names, seen = {}, {}
+    for index, key in ipairs(keys) do
+        local name = type(key) == "number" and GameKey.FromID(key)
+        assert(type(name) == "string", "A keybind must contain GameKey values")
+        assert(not seen[key], "A keybind cannot repeat a key")
+        names[index] = name
+        seen[key] = true
+    end
+    Settings.update("rightClickKeybind", table.concat(names, ","))
 end
 
 return Settings

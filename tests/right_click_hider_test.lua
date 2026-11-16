@@ -36,10 +36,21 @@ Plugin = { HasPermission = function(permission)
     return trackingAllowed
 end }
 Player = { IsAvailable = function() return true end, GetTrackingID = function() return trackingID end }
-local controlDown, shiftDown = false, false
+GameKey = { CONTROL = 82, SHIFT = 81, ALT = 86, K = 55 }
+function GameKey.FromID(key)
+    for name, value in pairs(GameKey) do if value == key then return name end end
+end
+local controlDown, shiftDown, altDown, keyDown = false, false, false, false
+local capturing, blocked, keyboardAvailable = false, false, true
 Keyboard = {
     IsControlDown = function() return controlDown end,
     IsShiftDown = function() return shiftDown end,
+    IsAvailable = function() return keyboardAvailable end,
+    IsBlocked = function() return blocked end,
+    IsGameKeyDown = function(key)
+        return (key == GameKey.CONTROL and controlDown) or (key == GameKey.SHIFT and shiftDown)
+            or (key == GameKey.ALT and altDown) or (key == GameKey.K and keyDown)
+    end,
 }
 local saved = {}
 PersistentDB = {
@@ -68,6 +79,17 @@ prettyui = { SimpleView = { new = function()
         return combo
     end
     function view:AddDivider() end
+    function view:AddCollapseButton(label, options)
+        self.advancedSection = { label = label, expanded = options.expanded }
+        return self
+    end
+    function view:AddList(options)
+        local list = { entries = options.entries }
+        function list:SetEntries(entries) self.entries = entries end
+        function list:SetDisabled(disabled) self.disabled = disabled end
+        self.idList = list
+        return list
+    end
     function view:AddCheckboxButton(items, options)
         local group = {}
         for _, item in ipairs(items) do
@@ -99,10 +121,28 @@ prettyui = { SimpleView = { new = function()
         self.fields[#self.fields + 1] = field
         return field
     end
+    function view:AddKeybindField(options)
+        local field = { value = options.value, defaultValue = options.defaultValue, onChange = options.onChange }
+        function field:SetValue(value, notify)
+            self.value = value
+            if notify then self.onChange(self, value) end
+        end
+        function field:SetDisabled(disabled) self.disabled = disabled end
+        self.keybind = field
+        return field
+    end
     function view:Destroy() self.destroyed = true end
     views[#views + 1] = view
     return view
 end } }
+prettyui.KeybindField = {
+    IsCapturing = function() return capturing end,
+    IsDown = function(keys)
+        if capturing or not keyboardAvailable or blocked or #keys == 0 then return false end
+        for _, key in ipairs(keys) do if not Keyboard.IsGameKeyDown(key) then return false end end
+        return true
+    end,
+}
 
 local modules = {
     require("entity_hider"), require("right_click_hider"),
@@ -177,13 +217,42 @@ controlDown, shiftDown = false, false
 modifiedMenu.added[1].click()
 expect(shownNPC(guard), false, "releasing modifiers after menu construction permits selection")
 undo.action()
+local keybind = content.keybind
+expect(keybind.value[1], GameKey.CONTROL, "default keybind starts with Ctrl")
+expect(keybind.value[2], GameKey.SHIFT, "default keybind includes Shift")
+keybind:SetValue({ GameKey.CONTROL, GameKey.ALT }, true)
+expect(saved.entity_hider_rightClickKeybind, "CONTROL,ALT", "keybind field saves enum names")
+controlDown, shiftDown = true, true
+expect(#menu(modifierEntries).added, 0, "old chord no longer shows Hide options")
+shiftDown, altDown = false, true
+expect(#menu(modifierEntries).added, 2, "Ctrl and Alt show Hide options together")
+controlDown = false
+expect(#menu(modifierEntries).added, 0, "Alt alone does not satisfy chord")
+keybind:SetValue({ GameKey.K }, true)
+keyDown = true
+expect(#menu(modifierEntries).added, 2, "custom single key shows Hide options")
+blocked = true
+expect(#menu(modifierEntries).added, 0, "blocked keyboard suppresses required shortcut")
+blocked, keyboardAvailable = false, false
+expect(#menu(modifierEntries).added, 0, "unavailable keyboard suppresses required shortcut")
+keyboardAvailable, capturing = true, true
+expect(#menu(modifierEntries).added, 0, "recording shortcut suppresses Hide options")
+capturing = false
+keybind:SetValue({}, true)
+expect(#menu(modifierEntries).added, 0, "cleared required binding hides menu options")
+keybind:SetValue({ GameKey.CONTROL, GameKey.ALT }, true)
+controlDown, shiftDown, altDown, keyDown = false, false, false, false
 emit("ContentLayerReady", parent)
 content = views[#views]
 status = content.text[2]
 undo = content.buttons["Undo Last Hide"]
 expect(content.checkboxes.rightClickRequireCtrlShift.selected, true, "reopened pane restores modifier requirement")
+expect(content.keybind.value[2], GameKey.ALT, "reopened pane restores customized keybind")
 content.checkboxes.rightClickRequireCtrlShift.onChange(nil, nil, "rightClickRequireCtrlShift", false)
 expect(saved.entity_hider_rightClickRequireCtrlShift, false, "modifier requirement can be disabled")
+capturing = true
+expect(#menu(modifierEntries).added, 0, "capture also suppresses Hide when requirement is off")
+capturing = false
 local choices = menu({ entry(guard), entry(guard), entry(npc("Guard")), entry(yak), entry(otherPlayer, true) })
 expect(#choices.added, 3, "deduplicate by saved name and category")
 expect(choices.added[1].label, "Hide Guard (Entity Hider)", "menu label")
@@ -338,6 +407,8 @@ storageToggle.onChange(storageControl, nil, "playerSpecific", true)
 expect(storageToggle.selected, true, "storage checkbox enables character mode")
 expect(Settings.get("customNPCs"), "", "new character starts with defaults")
 expect(settingsPane.fields[3].text, "", "storage change refreshes custom fields")
+expect(content.keybind.value[2], GameKey.SHIFT, "new character uses default binding")
+content.keybind:SetValue({ GameKey.K }, true)
 globalMenu.added[1].click()
 expect(Settings.get("customNPCs"), "", "stale global menu cannot modify character settings")
 Settings.update("allNPCs", true)
@@ -346,24 +417,83 @@ trackingID = "character-b"
 emit("Logic")
 expect(Settings.get("allNPCs"), false, "other character has independent toggles")
 expect(content.checkboxes.allNPCs.selected, false, "content toggles refresh on character switch")
+expect(content.keybind.value[2], GameKey.SHIFT, "second character has independent binding")
 trackingID = "character-a"
 emit("Logic")
 expect(Settings.get("allNPCs"), true, "returning character restores toggle")
 expect(content.checkboxes.allNPCs.selected, true, "content shows restored character toggle")
+expect(content.keybind.value[1], GameKey.K, "returning character restores custom binding")
+expect(#content.keybind.value, 1, "restored binding has correct number of keys")
 expect(settingsPane.fields[3].text, "Character NPC", "settings shows restored character list")
 trackingAllowed = false
 emit("Logic")
 expect(settingsPane.fields[3].disabled, true, "revoked permission disables list editing")
 expect(settingsPane.combo.disabled, true, "revoked permission disables preset selection")
+expect(settingsPane.checkboxes.presetIncludeToggles.disabled, true, "unavailable character disables preset toggle option")
+expect(settingsPane.fields[5].disabled, true, "unavailable character disables ID input")
 expect(content.checkboxes.allNPCs.disabled, true, "unavailable character disables content toggles")
+expect(content.keybind.disabled, true, "unavailable character disables keybind field")
 expect(#menu({ entry(guard) }).added, 0, "unavailable character omits right-click hide")
 trackingAllowed = true
 emit("Logic")
 expect(settingsPane.fields[3].disabled, false, "restored permission enables list editing")
 expect(content.checkboxes.allNPCs.disabled, false, "restored permission enables toggles")
+expect(content.keybind.disabled, false, "restored permission enables keybind field")
 storageToggle.onChange(storageControl, nil, "playerSpecific", false)
 expect(Settings.get("customNPCs"), "Other, New NPC", "turning off restores global list")
 expect(content.checkboxes.allNPCs.selected, false, "turning off restores global toggles")
+expect(content.keybind.value[2], GameKey.ALT, "turning off restores global keybind")
+
+local presetToggle = settingsPane.checkboxes.presetIncludeToggles
+expect(presetToggle.selected, false, "preset toggle option defaults off in UI")
+presetToggle.onChange(nil, nil, "presetIncludeToggles", true)
+expect(presetToggle.selected, true, "preset toggle option refreshes after change")
+Settings.update("spiders", true)
+Settings.update("activePreset", "2")
+Settings.update("allNPCs", true)
+Settings.update("spiders", false)
+Settings.update("activePreset", "1")
+expect(Settings.get("allNPCs"), false, "switch restores preset hide filter")
+expect(shownNPC(npc("Unlisted NPC")), true, "restored preset leaves unlisted NPC visible")
+expect(content.checkboxes.allNPCs.selected, false, "preset switch refreshes NPC checkbox")
+expect(content.checkboxes.spiders.selected, true, "preset switch refreshes spider checkbox")
+Settings.update("activePreset", "2")
+expect(content.checkboxes.allNPCs.selected, true, "second preset restores NPC checkbox")
+expect(content.checkboxes.spiders.selected, false, "second preset restores spider checkbox")
+expect(content.keybind.value[2], GameKey.ALT, "preset switch retains shared keybind")
+expect(shownNPC(npc("Unlisted NPC")), false, "preset switch applies hide filters immediately")
+Settings.update("activePreset", "1")
+Settings.update("spiders", false)
+Settings.update("presetIncludeToggles", false)
+
+-- Advanced IDs remain a manual setting, independent of regular name menus.
+expect(settingsPane.advancedSection.expanded, false, "advanced section starts collapsed")
+config = { NPC = { FromID = function(value)
+    if value == 1234 then return { configName = "NAMELESS_EFFECT", name = "" } end
+    if value == 5678 then return { configName = "PET_OVERRIDE", name = "Override pet" } end
+end } }
+local nameless = npc("")
+nameless.config.id, nameless.config.configName = 1234, "NAMELESS_EFFECT"
+expect(#menu({ entry(nameless) }).added, 0, "nameless NPC has no minimenu hide entry")
+expect(settingsPane.buttons["Show Hide by ID minimenu options"], nil, "ID menu toggle is removed")
+local namedIDTarget = npc("ID test NPC")
+namedIDTarget.config.id = 5678
+expect(#menu({ entry(namedIDTarget) }).added, 1, "named NPC offers only regular name hiding")
+expect(#menu({ entry(player("ID test player"), true) }).added, 1, "players offer only name hiding")
+settingsPane.fields[5].onChange(nil, nil, "001234, 5678")
+expect(shownNPC(nameless), false, "manual ID input hides nameless NPC")
+expect(#settingsPane.idList.entries, 2, "manual ID edits refresh labelled list")
+expect(settingsPane.idList.entries[1].label, "1234 - NAMELESS_EFFECT", "hidden ID list shows config name")
+expect(settingsPane.idList.entries[2].label, "5678 - PET_OVERRIDE (Override pet)", "list includes config and display names")
+local override = npc("Owner's renamed familiar", true)
+override.config.id = 5678
+expect(shownNPC(override), false, "ID list matches familiar entity config regardless of display name")
+Settings.update("activePreset", "2")
+expect(Settings.get("customNPCIDs"), "", "ID lists are independent between presets")
+Settings.update("activePreset", "1")
+expect(Settings.get("customNPCIDs"), "001234, 5678", "switch restores ID list")
+Settings.update("customNPCIDs", "")
+expect(shownNPC(nameless), true, "removing manual ID restores nameless NPC")
 
 local pending = menu({ entry(guard) })
 Settings.update("enabled", false)

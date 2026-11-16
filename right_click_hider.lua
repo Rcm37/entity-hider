@@ -76,23 +76,25 @@ end
 local function onMenuReady(event)
     if not Settings.IsStorageReady() then return end
     if not Settings.get("enabled") then return end
+    if prettyui.KeybindField.IsCapturing() then return end
     if Settings.get("rightClickRequireCtrlShift")
-        and not (Keyboard.IsControlDown() and Keyboard.IsShiftDown()) then
+        and not prettyui.KeybindField.IsDown(Settings.GetRightClickKeybind()) then
         return
     end
     local menu = event.miniMenu
     local targets, seen = {}, {}
+    local function addTarget(target)
+        if not target then return end
+        local key = target.setting .. ":" .. Names.Key(target.name, target.isPlayer)
+        if not seen[key] then
+            seen[key] = true
+            targets[#targets + 1] = target
+        end
+    end
     -- Snapshot before Add mutates the menu, and deduplicate multiple operations
     -- (or multiple NPCs) that would all hide the same saved name.
     for _, entry in ipairs(menu.entries) do
-        local target = targetFromEntry(entry)
-        if target then
-            local key = target.setting .. ":" .. Names.Key(target.name, target.isPlayer)
-            if not seen[key] then
-                seen[key] = true
-                targets[#targets + 1] = target
-            end
-        end
+        addTarget(targetFromEntry(entry))
     end
     for _, target in ipairs(targets) do
         menu:Add("Hide " .. target.name .. " (Entity Hider)", hide, target)
